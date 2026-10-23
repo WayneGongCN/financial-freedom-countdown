@@ -21,9 +21,7 @@ export function useFinanceWorkspace() {
   useEffect(() => {
     if (nav.guide) return;
     if (nav.panel === 'plan') {
-      if (!plan.draft) plan.begin(nav.step);
-      else if (!nav.step && plan.step) plan.cancelStep();
-      else if (nav.step && nav.step !== plan.step) plan.enterStep(nav.step);
+      if (!plan.draft) plan.begin();
     } else if (plan.draft) plan.cancel();
     if (nav.panel === 'goal') {
       if (!goal.draft) { goal.begin(nav.goalId, nav.step); }
@@ -40,21 +38,19 @@ export function useFinanceWorkspace() {
   function openGoal(id?: string) { goal.begin(id); nav.openPanel('goal', id); }
   /** 显示偏好只更新文档偏好字段，喵~ */
   function changeBasis(value: string) { api.commit({ ...api.document, preferences: { ...api.document.preferences, displayBasis: value === 'real' ? 'real' : 'nominal' } }); }
-  /** 确认当前计划步骤或正式提交整个编辑器，喵~ */
-  function savePlan() { if (plan.step) { plan.confirmStep(); nav.backStep(); } else if (plan.save()) nav.closePanel(); }
+  /** 正式提交整个计划并关闭编辑器，喵~ */
+  function savePlan() { if (plan.save()) nav.closePanel(); }
   /** 确认目标口径子步骤或保存完整目标，喵~ */
   function saveGoal() { if (goal.side) { goal.confirmSide(); nav.backStep(); } else if (goal.save()) nav.closePanel(); }
   /** 取消当前子步骤或整次编辑，喵~ */
   function closeEditor() {
-    if (nav.panel === 'plan') { if (plan.step) { plan.cancelStep(); nav.backStep(); return; } plan.cancel(); }
+    if (nav.panel === 'plan') plan.cancel();
     if (nav.panel === 'goal') { if (goal.side) { goal.cancelSide(); nav.backStep(); return; } goal.cancel(); }
     nav.closePanel();
   }
   /** 完成导入后取消旧文档的编辑会话，喵~ */
   async function importFile(file: File | undefined) { if (await transfer.upload(file)) { plan.cancel(); goal.cancel(); nav.closePanel(); } }
 
-  /** 进入计划子步骤时同步草稿与路由，喵~ */
-  function enterPlanStep(step: string) { nav.enterStep(step); }
   /** 进入目标指标子步骤时同步草稿与路由，喵~ */
   function enterGoalSide(side: string) { nav.enterStep(side); }
   /** 用户确认后删除目标并关闭面板，喵~ */
@@ -63,5 +59,5 @@ export function useFinanceWorkspace() {
   function makePrimary() { if (goal.makePrimary()) nav.closePanel(); }
   /** 重置文档时清除所有旧编辑会话，喵~ */
   function reset() { if (transfer.reset()) { plan.cancel(); goal.cancel(); nav.closePanel(); } }
-  return { api, nav, plan, goal, project, transfer, results, openPlan, openGoal, changeBasis, savePlan, saveGoal, closeEditor, importFile, enterPlanStep, enterGoalSide, removeGoal, makePrimary, reset };
+  return { api, nav, plan, goal, project, transfer, results, openPlan, openGoal, changeBasis, savePlan, saveGoal, closeEditor, importFile, enterGoalSide, removeGoal, makePrimary, reset };
 }

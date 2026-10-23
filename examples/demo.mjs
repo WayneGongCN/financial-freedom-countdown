@@ -10,7 +10,7 @@ const rows = [];
 for (const [inflation, incomeGrowth] of [[0, 0], [0.03, 0], [0.03, 0.03]]) {
   const plan = createPlan('2026-10', {
     initialAssets: 600000, inflationRate: inflation,
-    investmentReturn: { kind: 'nominal', annualRate: 0.08 },
+    investmentReturn: { annualRate: 0.08 },
     activeIncome: { amount: 240000, growth: { kind: 'custom', annualRate: incomeGrowth } },
     currentExpenses: { amount: 120000, growth: { kind: 'inflation' } },
   });

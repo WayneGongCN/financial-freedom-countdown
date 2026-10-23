@@ -7,7 +7,7 @@ import { amountGoal, flow, freedomGoal, plan, project } from './fixtures.js';
 
 describe('指标按依赖渐进计算', () => {
   it('收益缺失时仍显示资本目标、当前资产和进度', () => {
-    const context = createMetricContext(plan({ investmentReturn: null, cashYield: null }));
+    const context = createMetricContext(plan({ investmentReturn: null }));
     const current = evaluateGoal(context, freedomGoal());
     expect(current.status).toBe('not-met');
     expect(current.coverage).toBe(0.2);
@@ -22,15 +22,20 @@ describe('指标按依赖渐进计算', () => {
     expect(evaluateMetric(context, metricPreset('active-surplus'))).toMatchObject({ value: 120000 });
     expect(evaluateMetric(context, metricPreset('external-contribution'))).toMatchObject({ value: 120000 });
   });
-  it('年化现金收益不需要总回报；零资产也不需要现金收益率', () => {
-    const metric: MetricSpec = { kind: 'flow', basis: 'nominal', aggregation: 'annualized', components: ['investment-cash'] };
-    expect(evaluateMetric(createMetricContext(plan({ investmentReturn: null })), metric)).toMatchObject({ value: 12000 });
-    expect(evaluateMetric(createMetricContext(plan({ initialAssets: 0, investmentReturn: null, cashYield: null })), metric)).toMatchObject({ value: 0 });
+  it('年化投资总收益使用资产和总回报；零资产不要求额外收益输入', () => {
+    const metric: MetricSpec = { kind: 'flow', basis: 'nominal', aggregation: 'annualized', components: ['investment-total'] };
+    expect(evaluateMetric(createMetricContext(plan()), metric)).toMatchObject({ value: 48000 });
+    expect(evaluateMetric(createMetricContext(plan({ investmentReturn: null })), metric)).toMatchObject({ missingField: 'investmentReturn' });
+    expect(evaluateMetric(createMetricContext(plan({ initialAssets: 0, investmentReturn: null })), metric)).toMatchObject({ value: 0 });
   });
-  it('窗口现金收益缺失时仍可查看资产增长', () => {
-    const context = createMetricContext(plan({ cashYield: null }));
-    expect(evaluateMetric(context, metricPreset('passive-cash'))).toMatchObject({ missingField: 'cashYield' });
-    expect(evaluateMetric(context, metricPreset('asset-growth')).status).toBe('available');
+  it('两项默认被动收入目标仅凭总收益即可预测', () => {
+    const result = calculateMilestones(plan(), createDefaultGoals());
+    expect(result.projection.status).toBe('complete');
+    for (const forecast of result.goals.slice(0, 2)) {
+      expect(forecast.status).toBe('reached');
+      expect(forecast.current.left.status).toBe('available');
+      expect(forecast.firstMonth).toBeGreaterThan(0);
+    }
   });
   it('未填写通胀不能冒充实际统计结果', () => {
     const context = createMetricContext(plan({ inflationRate: null, currentExpenses: { amount: 120000, growth: { kind: 'fixed' } } }));
@@ -42,7 +47,7 @@ describe('指标按依赖渐进计算', () => {
 describe('指标组成与统计币值', () => {
   it('年化组成项按明确的正负方向求和', () => {
     const context = createMetricContext(plan());
-    const metric: MetricSpec = { kind: 'flow', basis: 'nominal', aggregation: 'annualized', components: ['active-income', 'external-income', 'investment-cash', 'investment-price-change', 'expenses'] };
+    const metric: MetricSpec = { kind: 'flow', basis: 'nominal', aggregation: 'annualized', components: ['active-income', 'external-income', 'investment-total', 'expenses'] };
     expect(evaluateMetric(context, metric)).toMatchObject({ value: 168000 });
     expect(evaluateMetric(context, { ...metric, components: ['investment-total'] })).toMatchObject({ value: 48000 });
     expect(describeMetric(metric)).toContain('−支出');
@@ -62,11 +67,22 @@ describe('指标组成与统计币值', () => {
     expect(availableValue(summed)!.value).toBeCloseTo(availableValue(actual)!.value, 7);
     expect(availableValue(actual)!.value).not.toBeCloseTo(availableValue(nominal)!.value / 1.03, 3);
   });
-  it('现金与非现金组成项相加等于统一总收益', () => {
-    const context = createMetricContext(plan());
-    const split = evaluateMetric(context, { kind: 'flow', basis: 'nominal', aggregation: 'next-12-months', components: ['investment-cash', 'investment-price-change'] });
-    const total = evaluateMetric(context, { kind: 'flow', basis: 'nominal', aggregation: 'next-12-months', components: ['investment-total'] });
-    expect(availableValue(split)!.value).toBeCloseTo(availableValue(total)!.value, 8);
+  it('总被动收入等于投资总收益加其他被动收入，年化与未来一年保持各自口径', () => {
+    const context = createMetricContext(plan({ externalIncome: { amount: 24000, growth: { kind: 'fixed' } } }));
+    const total = availableValue(evaluateMetric(context, metricPreset('investment-total')))!;
+    const passive = availableValue(evaluateMetric(context, metricPreset('passive-total')))!;
+    const monthlyReturn = 1.08 ** (1 / 12) - 1;
+    const expectedInvestment = 600000 * 0.08 + 12000 * (0.08 / monthlyReturn - 12);
+    expect(total.value).toBeCloseTo(expectedInvestment, 6);
+    expect(passive.value).toBeCloseTo(expectedInvestment + 24000, 6);
+    expect(evaluateMetric(context, { kind: 'flow', basis: 'nominal', aggregation: 'annualized', components: ['investment-total', 'external-income'] })).toMatchObject({ value: 72000 });
+    expect(passive.value).toBeGreaterThan(72000);
+  });
+  it('投资亏损可以使总被动收入为负，不把亏损截成零', () => {
+    const context = createMetricContext(plan({ investmentReturn: { annualRate: -0.1 },
+      activeIncome: { amount: 0, growth: { kind: 'fixed' } }, currentExpenses: { amount: 0, growth: { kind: 'fixed' } } }));
+    expect(availableValue(evaluateMetric(context, metricPreset('passive-total')))!.value).toBeCloseTo(-60000, 6);
+    expect(evaluateMetric(context, { kind: 'flow', basis: 'nominal', aggregation: 'annualized', components: ['investment-total', 'external-income'] })).toMatchObject({ value: -60000 });
   });
   it('显示切换不修改指标结果和达成时间', () => {
     const p = plan({ inflationRate: 0.03 });
@@ -135,14 +151,14 @@ describe('资本目标与里程碑', () => {
     if (goal.right.kind === 'metric') goal.right.metric.basis = 'real';
     expect(forecastGoal(context, goal).firstMonth).toBe(forecastGoal(context, freedomGoal()).firstMonth);
   });
-  it('只抵扣外部持续收入，不重复扣投资现金收益', () => {
-    const context = createMetricContext(plan({ externalIncome: { amount: 24000, growth: { kind: 'fixed' } }, cashYield: 0.5 }));
+  it('退休预算只抵扣资产池外持续收入，不重复扣除投资总收益', () => {
+    const context = createMetricContext(plan({ externalIncome: { amount: 24000, growth: { kind: 'fixed' } }, investmentReturn: { annualRate: 0.5 } }));
     const metric: MetricSpec = { kind: 'required-capital', basis: 'nominal', withdrawalRate: 0.04, deductExternalIncome: true, includeReserve: true };
     expect(evaluateMetric(context, metric)).toMatchObject({ value: 2400000 });
     expect(evaluateMetric(context, { ...metric, deductExternalIncome: false, includeReserve: false })).toMatchObject({ value: 3000000 });
   });
   it('跨越自由时点的有限付款计入准备金，已付款不再计入', () => {
-    const p = plan({ investmentReturn: { kind: 'nominal', annualRate: 0 } });
+    const p = plan({ investmentReturn: { annualRate: 0 } });
     const context = createMetricContext(p, project(flow({ startMonth: 12 })));
     expect(evaluateMetric(context, metricPreset('freedom-capital'), 0)).toMatchObject({ value: 3010000 });
     expect(evaluateMetric(context, metricPreset('freedom-capital'), 12)).toMatchObject({ value: 3000000 });
@@ -172,7 +188,7 @@ describe('资本目标与里程碑', () => {
     expect(evaluateGoal(context, goal).status).toBe('invalid');
   });
   it('非正主动储蓄不是自动达成', () => {
-    const context = createMetricContext(plan({ activeIncome: { amount: 120000, growth: { kind: 'fixed' } }, investmentReturn: { kind: 'nominal', annualRate: 0 } }));
+    const context = createMetricContext(plan({ activeIncome: { amount: 120000, growth: { kind: 'fixed' } }, investmentReturn: { annualRate: 0 } }));
     expect(evaluateGoal(context, createDefaultGoals()[0]!).status).toBe('not-applicable');
     expect(forecastGoal(context, createDefaultGoals()[0]!).status).toBe('not-applicable');
   });
@@ -180,7 +196,7 @@ describe('资本目标与里程碑', () => {
     const context = createMetricContext(plan());
     const same: Goal = { ...amountGoal(1), right: { kind: 'metric', metric: metricPreset('assets') } };
     expect(forecastGoal(context, same).status).toBe('condition-only');
-    const rate: Goal = { ...same, left: metricPreset('investment-cash'), right: { kind: 'metric', metric: { kind: 'flow', basis: 'nominal', aggregation: 'next-12-months', components: ['investment-total'] } } };
+    const rate: Goal = { ...same, ratio: 0.5, left: metricPreset('investment-total'), right: { kind: 'metric', metric: metricPreset('investment-total') } };
     expect(forecastGoal(context, rate)).toMatchObject({ status: 'condition-only', firstMonth: null });
   });
   it('窗口不足、资金不足和测算期未达标分别返回', () => {

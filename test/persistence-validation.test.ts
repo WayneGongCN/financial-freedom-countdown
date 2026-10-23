@@ -22,9 +22,9 @@ class MemoryStorage implements StorageAdapter {
 
 describe('运行时接口验证', () => {
   it.each([
-    { inflationRate: -1 }, { initialAssets: -1 }, { cashYield: NaN }, { horizonMonths: 1201 },
+    { inflationRate: -1 }, { initialAssets: -1 }, { inflationRate: NaN }, { horizonMonths: 1201 },
     { horizonMonths: 0 }, { baseMonth: '2026-13' }, { currency: 'USD' }, { unexpected: true },
-    { initialAssets: '600000' }, { investmentReturn: { kind: 'nominal', annualRate: Infinity } },
+    { initialAssets: '600000' }, { investmentReturn: { annualRate: Infinity } },
   ])('拒绝错误输入 %j', (change) => {
     expect(() => planSchema.parse({ ...plan(), ...change })).toThrow();
   });
@@ -52,7 +52,7 @@ describe('运行时接口验证', () => {
     expect(() => projectSchema.parse(project(...Array.from({ length: 101 }, (_, i) => flow({ id: `${i}` }))))).toThrow();
   });
   it.each([
-    { components: ['investment-total', 'investment-cash'] }, { components: ['investment-total', 'investment-price-change'] },
+    { components: ['investment-total', 'investment-total'] },
     { components: ['active-income', 'active-income'] }, { components: [] },
   ])('拒绝重复入账或空组成 %j', ({ components }) => {
     expect(() => metricSchema.parse({ kind: 'flow', basis: 'nominal', aggregation: 'annualized', components })).toThrow();
@@ -102,7 +102,7 @@ describe('版本化本地保存与备份', () => {
     expect(loadDocument(storage)).toBeNull();
   });
   it.each([
-    { schemaVersion: 2 }, { modelVersion: '2.0.0' }, { unexpected: true },
+    { schemaVersion: 99 }, { modelVersion: '99.0.0' }, { unexpected: true },
     { preferences: { displayBasis: 'nominal', primaryGoalId: 'missing' } },
   ])('未知版本或缺失语义不覆盖当前数据 %j', (change) => {
     const storage = new MemoryStorage();

@@ -35,9 +35,10 @@ export function OverviewView({ model, initialField, initialTarget, onInitialExpe
 }) {
   if (model.empty) return <div className={s.content}><h2 className={s.title}>离自由，还有多远？</h2><FormField field={initialField} onChange={(_id, value) => onInitialExpense(value)} /><HeroValue label="按当前生活预算所需资本" value={initialTarget} unit="万元" /><SectionHeader title="年支出 / 4%"><HelpLink onClick={() => onHelp('withdrawal-rate')}>4% 法则 ↗</HelpLink></SectionHeader><p className={s.caption}>先按当前生活预算估算，提取率和目标口径均可调整。</p><hr className={s.divider} /><h3 className={s.sectionTitle}>再补充一点信息，看看还需要多久</h3><Button onClick={onEditPlan}>填写我的计划</Button><p className={s.caption}>数据保存在当前浏览器，无需注册。</p><Notice><HeroValue label="预计还需" value="—" /><p className={s.caption}>填写当前资产、收入与长期假设后预测时间。</p></Notice></div>;
   return <div className={s.content}>
-    <div className={s.group}><ChoiceGroup label="金额显示口径" value={model.basis} options={basisOptions} onSelect={onBasisChange} /><p className={s.caption}>{model.basisLabel}</p></div>
+    <div className={s.group}>{model.canChangeBasis && <ChoiceGroup label="金额显示口径" value={model.basis} options={basisOptions} onSelect={onBasisChange} />}<p className={s.caption}>{model.basisLabel}</p></div>
     <SectionHeader title={<button className={s.sectionTitle} onClick={() => model.noGoals ? onAddGoal() : onEditGoal()}>{model.title}</button>}><HelpLink onClick={() => onHelp(model.titleHelp)}>{model.titleHelp === 'withdrawal-rate' ? '4% 法则 ↗' : '口径说明 ↗'}</HelpLink></SectionHeader>
     <HeroValue {...model.hero} />
+    <div className={s.coreMetrics} aria-label="计划核心指标">{model.coreMetrics.map((metric) => <button key={metric.label} type="button" className={s.coreMetric} onClick={onEditPlan}><span className={s.caption}>{metric.label}</span><strong>{metric.value}</strong><span className={s.caption}>{metric.unit}</span></button>)}</div>
     <div className={s.progressGroup}><KeyValueRow label={model.target} value={model.coverage} />{model.progress !== null && <ProgressBar value={model.progress} label="主目标完成进度" />}</div>
     <div className={s.balances}>{model.balances.map((balance) => <MetricValue key={balance.label} {...balance} />)}</div>
     {model.projected && <Notice><p className={s.caption}>{model.projected.title}</p><p className={s.subvalue}>{model.projected.value}</p><p className={s.caption}>{model.projected.note}</p></Notice>}
@@ -55,19 +56,34 @@ interface SectionProps extends ChangeProps, HelpProps {
    * 请求进入指定子编辑步骤，喵~
    * @param destination 子步骤标识，喵~
    */
-  onStep: (destination: string) => void;
+  onStep?: (destination: string) => void;
 }
 
 /** 复用编辑器的字段布局，跳转目标由容器解释，喵~ */
 export function EditorSections({ sections, onChange, onHelp, onStep }: SectionProps) {
-  return <>{sections.map((section) => <section key={section.id} className={s.stack}>{section.title && (section.destination ? <button className={s.assumptions} onClick={() => onStep(section.destination!)}><KeyValueRow label={section.title} value={`${section.summary ?? ''} ›`} /></button>
-    : <SectionHeader title={section.title} />)}{section.fields.map((field) => <FormField key={field.id} field={field} onChange={onChange} />)}
-    {section.note && <p className={s.caption}>{section.note}</p>}{section.help && <HelpLink onClick={() => onHelp(section.help!)}>说明 ↗</HelpLink>}</section>)}</>;
+  return <>{sections.map((section) => {
+    const content = <>{section.fields.map((field) => <FormField key={field.id} field={field} onChange={onChange} />)}
+      {section.note && <p className={s.caption}>{section.note}</p>}{section.destination && onStep && <button type="button" className={s.assumptions} onClick={() => onStep(section.destination!)}><KeyValueRow label={section.title ?? '高级设置'} value={`${section.summary ?? ''} ›`} /></button>}
+      {section.help && <HelpLink onClick={() => onHelp(section.help!)}>说明 ↗</HelpLink>}</>;
+    return section.collapsed ? <Disclosure key={section.id} title={section.title ?? '高级设置'}>{content}</Disclosure>
+      : <section key={section.id} aria-label={section.title} className={section.fields.some((field) => field.slider) ? s.coreControls : s.stack}>{section.title && !section.destination && <SectionHeader title={section.title} />}{content}</section>;
+  })}</>;
 }
 
-/** 展示计划编辑草稿及明确标识的预览，喵~ */
+/** 固定展示当前编辑目标与草稿预测，输入无效时立即替换上一次预测，喵~ */
+export function EditorPreview({ model }: { model: EditorModel }) {
+  return <section className={s.editorPreview} aria-label="草稿预测" aria-live="polite" aria-atomic="true">
+    {model.targetName && <p className={s.caption}>{model.targetName}</p>}
+    <HeroValue {...(model.preview ?? { label: '按此草稿预计还需', value: '—', note: model.error ?? '补充计划信息后可预测。' })} />
+    {model.rows?.map((row) => <KeyValueRow key={row.label} {...row} />)}
+    <p className={s.caption}>草稿未保存 · 确认后生效</p>
+  </section>;
+}
+
+/** 展示可滚动的编辑字段与比较规则，预测由面板固定区域承载，喵~ */
 export function PlanEditorView({ model, ...actions }: Omit<SectionProps, 'sections'> & { model: EditorModel }) {
-  return <div className={s.stack}>{model.note && <p className={s.caption}>{model.note}</p>}<EditorSections sections={model.sections} {...actions} />{model.error && <Notice alert><p className={s.error}>{model.error}</p></Notice>}{model.preview && <Notice><HeroValue {...model.preview} />{model.rows?.map((row) => <KeyValueRow key={row.label} {...row} />)}<p className={s.caption}>预览尚未保存，取消不会修改当前计划。</p></Notice>}</div>;
+  return <div className={s.stack}>{model.note && <p className={s.caption}>{model.note}</p>}{model.equation && <p className={s.equation}>{model.equation}</p>}
+    {model.error && <Notice alert><p className={s.error}>{model.error}</p></Notice>}<EditorSections sections={model.sections} {...actions} /></div>;
 }
 
 /** 目标视图复用编辑布局但保持独立的业务容器入口，喵~ */
@@ -101,7 +117,7 @@ export function EvaluationView({ model, sections, timingRows, canAdd, onChange, 
     {timingRows.map((row) => <KeyValueRow key={row.label} {...row} />)}
     <HeroValue {...model.hero} />{model.rows.map((row) => <KeyValueRow key={row.label} {...row} />)}
     <p className={s.caption}>当前金额按方案基准月计价。试算不会改变你的基础计划。</p>
-    <Disclosure title="金额影响"><div className={s.group}><ChoiceGroup label="评估金额显示口径" value={model.basis} options={basisOptions} onSelect={onBasisChange} /><p className={s.caption}>{model.basisLabel}</p></div>
+    <Disclosure title="金额影响"><div className={s.group}>{model.canChangeBasis && <ChoiceGroup label="评估金额显示口径" value={model.basis} options={basisOptions} onSelect={onBasisChange} />}<p className={s.caption}>{model.basisLabel}</p></div>
       {model.impactRows.map((row) => <KeyValueRow key={row.label} {...row} />)}{model.impactHero && <HeroValue {...model.impactHero} />}<HelpLink onClick={() => onHelp('impact-decomposition')}>金额影响说明 ↗</HelpLink></Disclosure>
     <SectionHeader title="对照：当前计划"><HelpLink onClick={() => onHelp('comparison-baseline')}>说明 ↗</HelpLink></SectionHeader><p className={s.caption}>{model.comparisonNote}</p>
     <Button secondary onClick={onEditPlan}>调整当前计划</Button><HelpLink onClick={onClear}>重新试算</HelpLink>

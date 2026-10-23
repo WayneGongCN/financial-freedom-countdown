@@ -2,9 +2,8 @@ import { MODEL_VERSION, SCHEMA_VERSION, planSchema, type Basis, type FinanceDocu
 
 export const METRIC_PRESET_NAMES = {
   'assets': '可投资资产',
-  'investment-cash': '资产池现金收益',
-  'passive-cash': '投资现金收益＋外部被动收入',
-  'passive-total': '投资总损益＋外部被动收入',
+  'investment-total': '投资总收益',
+  'passive-total': '总被动收入',
   'active-income': '主动收入',
   'active-surplus': '主动收入结余',
   'external-contribution': '外部净投入',
@@ -19,8 +18,7 @@ export function metricPreset(id: MetricPresetId, basis: Basis = 'nominal'): Metr
   if (id === 'asset-growth') return { kind: 'asset-growth', basis };
   if (id === 'freedom-capital') return { kind: 'required-capital', basis, withdrawalRate: 0.04, deductExternalIncome: false, includeReserve: true };
   const parts = {
-    'investment-cash': ['investment-cash'],
-    'passive-cash': ['investment-cash', 'external-income'],
+    'investment-total': ['investment-total'],
     'passive-total': ['investment-total', 'external-income'],
     'active-income': ['active-income'],
     'active-surplus': ['active-income', 'expenses'],
@@ -33,7 +31,7 @@ export function metricPreset(id: MetricPresetId, basis: Basis = 'nominal'): Metr
 export function createPlan(baseMonth: string, overrides: Partial<Plan> = {}): Plan {
   return planSchema.parse({
     baseMonth, currency: 'CNY', initialAssets: null, inflationRate: null,
-    investmentReturn: null, cashYield: null, activeIncome: null, currentExpenses: null,
+    investmentReturn: null, activeIncome: null, currentExpenses: null,
     externalIncome: { amount: 0, growth: { kind: 'fixed' } },
     retirementBudget: { kind: 'current' }, horizonMonths: 1200, ...overrides,
   });
@@ -42,17 +40,17 @@ export function createPlan(baseMonth: string, overrides: Partial<Plan> = {}): Pl
 /** 创建个人偏好的默认目标，保留所有口径与比较策略的可编辑性，喵~ */
 export function createDefaultGoals(): Goal[] {
   return [
-    { id: 'passive-vs-saving', name: '被动收入覆盖主动储蓄', left: metricPreset('passive-cash'), right: { kind: 'metric', metric: metricPreset('active-surplus') }, ratio: 1, comparison: 'baseline' },
-    { id: 'passive-vs-income', name: '被动收入覆盖主动收入', left: metricPreset('passive-cash'), right: { kind: 'metric', metric: metricPreset('active-income') }, ratio: 1, comparison: 'baseline' },
+    { id: 'passive-vs-saving', name: '被动收入覆盖主动储蓄', left: metricPreset('passive-total'), right: { kind: 'metric', metric: metricPreset('active-surplus') }, ratio: 1, comparison: 'baseline' },
+    { id: 'passive-vs-income', name: '被动收入覆盖主动收入', left: metricPreset('passive-total'), right: { kind: 'metric', metric: metricPreset('active-income') }, ratio: 1, comparison: 'baseline' },
     { id: 'freedom-capital', name: '支出覆盖目标（4%）', left: metricPreset('assets'), right: { kind: 'metric', metric: metricPreset('freedom-capital') }, ratio: 1, comparison: 'scenario' },
   ];
 }
 
-/** 创建版本化空白文档，基准月份由调用方显式提供，喵~ */
+/** 创建默认不计通胀的空白文档，基准月份由调用方显式提供，喵~ */
 export function createDocument(baseMonth: string): FinanceDocument {
   return {
-    schemaVersion: SCHEMA_VERSION, modelVersion: MODEL_VERSION, plan: createPlan(baseMonth),
+    schemaVersion: SCHEMA_VERSION, modelVersion: MODEL_VERSION, plan: createPlan(baseMonth, { inflationRate: 0 }),
     goals: createDefaultGoals(), project: null,
-    preferences: { displayBasis: 'real', primaryGoalId: 'freedom-capital' },
+    preferences: { displayBasis: 'nominal', primaryGoalId: 'freedom-capital' },
   };
 }

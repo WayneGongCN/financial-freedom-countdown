@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
-export const SCHEMA_VERSION = 1 as const;
-export const MODEL_VERSION = '1.0.0' as const;
+export const SCHEMA_VERSION = 3 as const;
+export const MODEL_VERSION = '3.0.0' as const;
 export const MAX_MONTHS = 1200;
 
 const amount = z.number().finite().min(0);
@@ -16,7 +16,6 @@ export const growthSchema = z.discriminatedUnion('kind', [
 ]);
 export const annualFlowSchema = z.strictObject({ amount, growth: growthSchema });
 export const returnSchema = z.strictObject({
-  kind: z.enum(['nominal', 'real']),
   annualRate: rate,
 });
 
@@ -26,7 +25,6 @@ export const planSchema = z.strictObject({
   initialAssets: amount.nullable(),
   inflationRate: rate.nullable(),
   investmentReturn: returnSchema.nullable(),
-  cashYield: amount.nullable(),
   activeIncome: annualFlowSchema.nullable(),
   currentExpenses: annualFlowSchema.nullable(),
   externalIncome: annualFlowSchema.nullable(),
@@ -71,8 +69,7 @@ export const projectSchema = z.strictObject({
 
 export const basisSchema = z.enum(['nominal', 'real']);
 export const componentSchema = z.enum([
-  'active-income', 'external-income', 'investment-total', 'investment-cash',
-  'investment-price-change', 'expenses', 'inflation-adjustment',
+  'active-income', 'external-income', 'investment-total', 'expenses', 'inflation-adjustment',
 ]);
 export const metricSchema = z.discriminatedUnion('kind', [
   z.strictObject({ kind: z.literal('assets'), basis: basisSchema }),
@@ -81,14 +78,11 @@ export const metricSchema = z.discriminatedUnion('kind', [
     kind: z.literal('flow'),
     basis: basisSchema,
     aggregation: z.enum(['annualized', 'next-12-months']),
-    components: z.array(componentSchema).min(1).max(7),
+    components: z.array(componentSchema).min(1).max(5),
   }).superRefine((metric, ctx) => {
     const parts = new Set(metric.components);
     if (parts.size !== metric.components.length) {
       ctx.addIssue({ code: 'custom', path: ['components'], message: '组成项不能重复' });
-    }
-    if (parts.has('investment-total') && (parts.has('investment-cash') || parts.has('investment-price-change'))) {
-      ctx.addIssue({ code: 'custom', path: ['components'], message: '总收益不能与现金或价格收益重复相加' });
     }
     if (parts.has('inflation-adjustment') && (metric.basis !== 'real' || metric.aggregation !== 'next-12-months')) {
       ctx.addIssue({ code: 'custom', path: ['components'], message: '购买力调整仅适用于逐月实际流量口径' });

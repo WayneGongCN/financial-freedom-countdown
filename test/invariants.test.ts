@@ -9,7 +9,7 @@ describe('跨模型不变量', () => {
   it('多组收益、通胀及增长假设下，独立实际金额递推与名义递推等价', () => {
     for (const inflation of [-0.01, 0, 0.03, 0.08]) {
       for (const investmentReturn of [-0.05, 0, 0.03, 0.12]) {
-        const p = plan({ inflationRate: inflation, investmentReturn: { kind: 'nominal', annualRate: investmentReturn }, horizonMonths: 240,
+        const p = plan({ inflationRate: inflation, investmentReturn: { annualRate: investmentReturn }, horizonMonths: 240,
           activeIncome: { amount: 240000, growth: { kind: 'custom', annualRate: 0.01 } },
           currentExpenses: { amount: 60000, growth: { kind: 'inflation' } } });
         const pr = project(flow({ startMonth: 13, amount: 1000, endMonth: 36, frequency: 'monthly', growth: { kind: 'custom', annualRate: 0.02 } }));
@@ -25,13 +25,24 @@ describe('跨模型不变量', () => {
       }
     }
   });
-  it('名义收益与等价实际收益输入不改变任何一月的资产', () => {
-    const nominalPlan = plan({ inflationRate: 0.03 });
-    const actualPlan = plan({ inflationRate: 0.03, investmentReturn: { kind: 'real', annualRate: 1.08 / 1.03 - 1 } });
-    const a = simulatePlan(nominalPlan);
-    const b = simulatePlan(actualPlan);
-    for (let m = 0; m <= 1200; m++) expect(Math.abs(a.rows[m]!.assets - b.rows[m]!.assets) / a.rows[m]!.assets).toBeLessThan(1e-10);
-    expect(forecastGoal(createMetricContext(nominalPlan), freedomGoal()).firstMonth).toBe(forecastGoal(createMetricContext(actualPlan), freedomGoal()).firstMonth);
+  it('改变通胀不改变锁定总收益的纯资产路径，购买力随物价变化', () => {
+    const base = plan({ inflationRate: 0, activeIncome: { amount: 0, growth: { kind: 'fixed' } },
+      currentExpenses: { amount: 0, growth: { kind: 'fixed' } } });
+    const reference = simulatePlan(base);
+    const referenceDate = forecastGoal(createMetricContext(base), amountGoal(3000000)).firstMonth;
+    for (const inflationRate of [-0.01, 0.03, 0.08]) {
+      const changed = { ...base, inflationRate };
+      const projection = simulatePlan(changed);
+      expect(nominalReturn(changed)).toBe(0.08);
+      expect(projection.status).toBe('complete');
+      for (let month = 0; month <= 1200; month++) {
+        const row = projection.rows[month]!;
+        expect(row.assets).toBe(reference.rows[month]!.assets);
+        expect(row.assets / priceIndex(changed, month)).toBeCloseTo(reference.rows[month]!.assets / (1 + inflationRate) ** (month / 12), 6);
+      }
+      expect(projection.rows[120]!.assets / priceIndex(changed, 120)).not.toBe(reference.rows[120]!.assets);
+      expect(forecastGoal(createMetricContext(changed), amountGoal(3000000)).firstMonth).toBe(referenceDate);
+    }
   });
   it('现金流守恒与实际资产增长守恒在有项目时同时成立', () => {
     const p = plan({ inflationRate: 0.03 });
@@ -39,7 +50,7 @@ describe('跨模型不变量', () => {
       flow({ id: 'income', kind: 'passive-income', startMonth: 3, endMonth: 27, frequency: 'yearly', amount: 100 }));
     const context = createMetricContext(p, pr);
     const all: MetricSpec = { kind: 'flow', basis: 'real', aggregation: 'next-12-months',
-      components: ['active-income', 'external-income', 'investment-cash', 'investment-price-change', 'expenses', 'inflation-adjustment'] };
+      components: ['active-income', 'external-income', 'investment-total', 'expenses', 'inflation-adjustment'] };
     for (const month of [0, 1, 12, 24, 120]) {
       const flowValue = evaluateMetric(context, all, month);
       const growth = evaluateMetric(context, { kind: 'asset-growth', basis: 'real' }, month);

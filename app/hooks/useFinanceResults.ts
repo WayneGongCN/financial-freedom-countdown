@@ -16,31 +16,48 @@ export function calculateResults(document: FinanceDocument, project: Project | n
 }
 export type CalculatedResults = ReturnType<typeof calculateResults>;
 
+/** 只有已设置的非零通胀才提供购买力切换，保留文档中的原始偏好，喵~ */
+function displaySettings(document: FinanceDocument) {
+  const { plan, preferences } = document;
+  const canChangeBasis = plan.inflationRate !== null && plan.inflationRate !== 0;
+  const basis = canChangeBasis ? preferences.displayBasis : 'nominal';
+  const basisLabel = basis === 'real' ? `购买力基准 · ${monthLabel(plan.baseMonth)}`
+    : plan.inflationRate === null ? '名义金额 · 通胀尚未设置'
+      : plan.inflationRate === 0 ? '名义金额 · 不计通胀（0%）' : '名义金额 · 按发生月份计价';
+  return { basis, basisLabel, canChangeBasis };
+}
+
 /** 将基准预测转换为展示数据，不因切换显示币值改变日期，喵~ */
 export function overviewModel(document: FinanceDocument, calculated: CalculatedResults): OverviewModel {
-  const { plan, preferences } = document;
+  const { plan } = document;
   const { primary, forecast, future, baseline } = calculated;
-  const basis = preferences.displayBasis;
+  const display = displaySettings(document);
+  const { basis, canChangeBasis } = display;
   const unit = forecast?.current.left.status === 'available' && forecast.current.left.unit === 'annual-flow' ? '万/年' : '万';
   const left = forecast ? shownMetric(forecast.current.left, plan, basis) : null;
   const target = forecast ? shownMetric(forecast.current.right, plan, basis) : null;
   const gap = left !== null && target !== null ? target - left : null;
   const futureValue = future ? shownMetric(future.right, plan, basis) : null;
-  const futureNominal = future ? shownMetric(future.right, plan, basis === 'real' ? 'nominal' : 'real') : null;
+  const futureOtherBasis = future && canChangeBasis ? shownMetric(future.right, plan, basis === 'real' ? 'nominal' : 'real') : null;
   const coverage = forecast?.current.coverage ?? null;
   const isCapital = primary?.left.kind === 'assets';
   return {
     empty: plan.currentExpenses === null && plan.initialAssets === null, noGoals: !primary,
-    basis, basisLabel: `购买力基准 · ${monthLabel(plan.baseMonth)}`,
+    ...display,
     title: primary?.name ?? '设置你的自由目标', titleHelp: primary?.right.kind === 'metric' && primary.right.metric.kind === 'required-capital' ? 'withdrawal-rate' : 'goal-amount-basis',
     hero: forecastHero(forecast), target: `当前目标 ${numberText(target === null ? null : target / 10000)} ${unit}`,
     coverage: coverage === null ? '进度待补充' : `已完成 ${numberText(coverage * 100, 1)}%`, progress: coverage === null ? null : Math.max(0, Math.min(100, coverage * 100)),
     balances: [{ label: isCapital ? '已积累' : '当前指标', value: numberText(left === null ? null : left / 10000), unit, tone: 'positive' },
       { label: gap !== null && gap < 0 ? '已超出目标' : '当前缺口', value: numberText(gap === null ? null : Math.abs(gap) / 10000), unit, tone: gap !== null && gap <= 0 ? 'positive' : 'negative' }],
     projected: future ? { title: '预计达成月份的目标', value: `${numberText(futureValue === null ? null : futureValue / 10000)} ${unit === '万' ? '万元' : '万元/年'}`,
-      note: futureValue === null ? '补充通胀假设后可换算购买力' : basis === 'real' ? `${monthLabel(plan.baseMonth)}购买力 · 届时约 ${numberText(futureNominal === null ? null : futureNominal / 10000)} ${unit}`
-        : `${monthLabel(monthAt(plan.baseMonth, forecast!.firstMonth!))}名义金额 · 基准月约 ${numberText(futureNominal === null ? null : futureNominal / 10000)} ${unit}` } : null,
-    assumptions: [`${plan.investmentReturn?.kind === 'real' ? '实际' : '名义'}收益 ${plan.investmentReturn ? `${numberText(plan.investmentReturn.annualRate * 100)}%` : '未填写'} · 通胀 ${plan.inflationRate === null ? '未填写' : `${numberText(plan.inflationRate * 100)}%`}`,
+      note: futureValue === null ? '该目标金额暂不可显示' : basis === 'real' ? `${monthLabel(plan.baseMonth)}购买力${futureOtherBasis === null ? '' : ` · 届时约 ${numberText(futureOtherBasis / 10000)} ${unit}`}`
+        : `${monthLabel(monthAt(plan.baseMonth, forecast!.firstMonth!))}名义金额${futureOtherBasis === null ? '' : ` · 基准月约 ${numberText(futureOtherBasis / 10000)} ${unit}`}` } : null,
+    coreMetrics: [
+      { label: '年收入', value: numberText(plan.activeIncome === null ? null : plan.activeIncome.amount / 10000), unit: '万元/年' },
+      { label: '年化总收益率', value: numberText(plan.investmentReturn === null ? null : plan.investmentReturn.annualRate * 100), unit: '%' },
+      { label: '年支出', value: numberText(plan.currentExpenses === null ? null : plan.currentExpenses.amount / 10000), unit: '万元/年' },
+    ],
+    assumptions: [`年化总收益 ${plan.investmentReturn ? `${numberText(plan.investmentReturn.annualRate * 100)}%` : '未填写'} · 通胀 ${plan.inflationRate === null ? '未填写' : `${numberText(plan.inflationRate * 100)}%`}`,
       `工资${growthLabel(plan.activeIncome?.growth)} · 支出${growthLabel(plan.currentExpenses?.growth)} · 调整假设 ›`],
     milestones: baseline.goals.filter((item) => item.goalId !== primary?.id).map((item) => {
       const goal = document.goals.find((g) => g.id === item.goalId)!;
@@ -52,9 +69,10 @@ export function overviewModel(document: FinanceDocument, calculated: CalculatedR
 
 /** 在相同参考月显示已有归因字段，不重新发明购买力分解公式，喵~ */
 export function evaluationModel(document: FinanceDocument, comparison: ProjectComparison | null, draftError?: string): EvaluationModel {
-  const basis = document.preferences.displayBasis;
+  const display = displaySettings(document);
+  const { basis } = display;
   const base: EvaluationModel = { hero: { label: '预计影响', value: '—', note: '填写一笔消费，看看它如何影响自由时间。' }, rows: [], impactRows: [], impactHero: null,
-    comparisonNote: '对照：当前计划，使用相同宏观假设和目标规则。', basis, basisLabel: `${monthLabel(document.plan.baseMonth)}购买力`, ...(draftError ? { error: draftError } : {}) };
+    comparisonNote: '对照：当前计划，使用相同宏观假设和目标规则。', ...display, ...(draftError ? { error: draftError } : {}) };
   if (!comparison || draftError) return base;
   const result = comparison.goals.find((goal) => goal.goalId === document.preferences.primaryGoalId);
   const impact = comparison.impact;
@@ -103,8 +121,8 @@ export function useFinanceResults(document: FinanceDocument, project: Project | 
 }
 
 /** 为编辑器返回独立草稿预测，不更新正式文档，喵~ */
-export function previewGoal(document: FinanceDocument, id: string): { hero: ReturnType<typeof forecastHero>; rows: RowModel[] } {
-  const result = calculateMilestones(document.plan, document.goals);
-  const forecast: GoalForecast | undefined = result.goals.find((goal) => goal.goalId === id);
-  return { hero: { ...forecastHero(forecast), label: '按此草稿预计还需' }, rows: forecast ? [{ label: '当前目标', value: `${numberText(shownMetric(forecast.current.right, document.plan, document.preferences.displayBasis))} ${forecast.current.right.status === 'available' && forecast.current.right.unit === 'annual-flow' ? '元/年' : '元'}` }] : [] };
+export function previewGoal(document: FinanceDocument, id: string): { hero: ReturnType<typeof forecastHero>; rows: RowModel[]; targetName: string } {
+  const goal = document.goals.find((item) => item.id === id);
+  const forecast: GoalForecast | undefined = goal ? calculateMilestones(document.plan, [goal]).goals[0] : undefined;
+  return { hero: { ...forecastHero(forecast), label: '按此草稿预计还需' }, targetName: goal?.name ?? '未选择目标', rows: forecast ? [{ label: '当前目标', value: `${numberText(shownMetric(forecast.current.right, document.plan, displaySettings(document).basis))} ${forecast.current.right.status === 'available' && forecast.current.right.unit === 'annual-flow' ? '元/年' : '元'}` }] : [] };
 }

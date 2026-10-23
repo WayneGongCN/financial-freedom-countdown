@@ -30,8 +30,7 @@ export type MetricResult = MetricValue | UnavailableMetric;
 
 export const COMPONENT_LABELS: Record<Component, string> = {
   'active-income': '主动收入', 'external-income': '外部被动收入',
-  'investment-total': '投资总损益', 'investment-cash': '投资现金收益',
-  'investment-price-change': '投资非现金损益', expenses: '支出',
+  'investment-total': '投资总收益', expenses: '支出',
   'inflation-adjustment': '持有本金购买力调整',
 };
 
@@ -83,17 +82,12 @@ function annualComponent(context: MetricContext, component: Component, month: nu
   }
   const assets = assetsAt(context, month);
   if (assets === 0) return 0;
-  if (component === 'investment-cash') return assets * required(plan.cashYield, 'cashYield');
-  const total = assets * nominalReturn(plan);
-  if (component === 'investment-total') return total;
-  return total - assets * required(plan.cashYield, 'cashYield');
+  return assets * nominalReturn(plan);
 }
 
 /** 从统一账本读取组成项，购买力调整已经是实际金额，喵~ */
 function monthlyComponent(row: MonthlyRow, component: Exclude<Component, 'active-income' | 'external-income' | 'expenses'>): number {
   if (component === 'investment-total') return row.investmentTotal;
-  if (component === 'investment-cash') return required(row.investmentCash, 'cashYield');
-  if (component === 'investment-price-change') return required(row.investmentPriceChange, 'cashYield');
   return required(row.inflationAdjustmentReal, 'inflationRate');
 }
 

@@ -5,7 +5,7 @@ import { FinanceDocumentProvider } from '../app/hooks/useFinanceDocument';
 /** 提供与 Figma 对照场景一致的合成文档，喵~ */
 export function fixtureDocument(): FinanceDocument {
   const document = createDocument('2026-10');
-  document.plan = { ...document.plan, initialAssets: 600000, inflationRate: 0.03, investmentReturn: { kind: 'nominal', annualRate: 0.08 }, cashYield: 0.02,
+  document.plan = { ...document.plan, initialAssets: 600000, inflationRate: 0.03, investmentReturn: { annualRate: 0.08 },
     activeIncome: { amount: 240000, growth: { kind: 'fixed' } }, currentExpenses: { amount: 120000, growth: { kind: 'inflation' } } };
   return document;
 }

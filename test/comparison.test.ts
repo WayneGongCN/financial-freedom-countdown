@@ -29,7 +29,7 @@ describe('消费与增收的两条路径', () => {
     expect(result.goals.every((goal) => goal.delayMonths === 0)).toBe(true);
   });
   it('永久消费同时降低积累速度并提高资本目标', () => {
-    const p = plan({ investmentReturn: { kind: 'nominal', annualRate: 0 } });
+    const p = plan({ investmentReturn: { annualRate: 0 } });
     const result = compareProject(p, [freedomGoal()], project(flow({ amount: 1000, startMonth: 1, frequency: 'monthly' })));
     expect(result.goals[0]).toMatchObject({ baseline: { firstMonth: 240 }, scenario: { firstMonth: 300 }, delayMonths: 60, targetChangeAtReference: 300000 });
   });
@@ -39,7 +39,7 @@ describe('消费与增收的两条路径', () => {
     expect(result.impact).toMatchObject({ netPrincipalDifferenceNominal: 12000 });
   });
   it('固定基准门槛与动态门槛分别计算且原因可解释', () => {
-    const p = plan({ cashYield: 0.02 });
+    const p = plan();
     const original = createDefaultGoals()[0]!;
     const frozen: Goal = { ...original, id: 'frozen', comparison: 'baseline' };
     const dynamic: Goal = { ...original, id: 'dynamic', comparison: 'scenario' };
@@ -67,7 +67,7 @@ describe('消费与增收的两条路径', () => {
     expect(result.impact.investmentReturnDifferenceReal! + result.impact.netPrincipalDifferenceReal!).toBeCloseTo(result.impact.assetDifferenceReal!, 8);
   });
   it('负收益对应少承担的投资亏损，投资差额允许为负', () => {
-    const result = compareProject(plan({ investmentReturn: { kind: 'nominal', annualRate: -0.1 } }), [amountGoal(1e9)], project(flow()), { referenceMonth: 12 });
+    const result = compareProject(plan({ investmentReturn: { annualRate: -0.1 } }), [amountGoal(1e9)], project(flow()), { referenceMonth: 12 });
     expect(result.impact.status).toBe('available');
     if (result.impact.status !== 'available') return;
     expect(result.impact.investmentReturnDifferenceNominal).toBeCloseTo(-1000, 6);

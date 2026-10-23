@@ -1,4 +1,4 @@
-import { useLayoutEffect, useRef } from 'react';
+import { useEffect, useLayoutEffect, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 
 /** 管理页面和面板路由，并在口径说明往返时恢复来源位置，喵~ */
@@ -10,11 +10,18 @@ export function useFinanceNavigation() {
   const params = new URLSearchParams(location.search);
   const panel = params.get('panel');
   const requestedStep = params.get('step') ?? '';
-  const steps = panel === 'plan' ? ['income', 'expenses', 'external', 'budget', 'assumptions'] : ['left', 'right'];
-  const step = steps.includes(requestedStep) ? requestedStep : '';
+  const step = panel === 'goal' && ['left', 'right'].includes(requestedStep) ? requestedStep : '';
   const goalId = params.get('goal') ?? undefined;
   const guide = location.pathname === '/guide';
   const anchor = location.hash.slice(1);
+  /** 旧计划子页直接替换为完整计划，保留来源、其他参数和当前草稿，喵~ */
+  useEffect(() => {
+    if (panel !== 'plan') return;
+    const query = new URLSearchParams(location.search);
+    if (!query.has('step')) return;
+    query.delete('step');
+    navigate({ pathname: location.pathname, search: query.toString(), hash: location.hash }, { replace: true, state: location.state });
+  }, [panel, location.pathname, location.search, location.hash, location.state, navigate]);
   /** 保存来源滚动位置但不把金额或草稿写入 URL，喵~ */
   function remember() { positions.current[location.pathname] = scrollRef.current?.scrollTop ?? 0; }
   /** 请求主页面导航，喵~ */
@@ -26,10 +33,19 @@ export function useFinanceNavigation() {
   }
   /** 关闭面板时清除编辑路由，喵~ */
   function closePanel() { if (location.state?.panelParent) navigate(-1); else navigate({ pathname: location.pathname, search: '' }, { replace: true }); }
-  /** 子面板共用一个模态层，浏览器后退可返回上级，喵~ */
-  function enterStep(next: string) { const query = new URLSearchParams(location.search); query.set('step', next); navigate({ search: query.toString() }, { state: { ...location.state, stepParent: true } }); }
-  /** 确认或取消子步骤后返回父面板，喵~ */
-  function backStep() { if (location.state?.stepParent) { navigate(-1); return; } const query = new URLSearchParams(location.search); query.delete('step'); navigate({ search: query.toString() }, { replace: true }); }
+  /** 只有目标指标使用子步骤，浏览器后退可返回目标编辑器，喵~ */
+  function enterStep(next: string) {
+    if (panel !== 'goal' || !['left', 'right'].includes(next)) return;
+    const query = new URLSearchParams(location.search); query.set('step', next);
+    navigate({ search: query.toString() }, { state: { ...location.state, stepParent: true } });
+  }
+  /** 确认或取消目标指标子步骤后返回目标编辑器，喵~ */
+  function backStep() {
+    if (panel !== 'goal' || !step) return;
+    if (location.state?.stepParent) { navigate(-1); return; }
+    const query = new URLSearchParams(location.search); query.delete('step');
+    navigate({ search: query.toString() }, { replace: true });
+  }
   /** 打开说明时记录来源路由，已有说明页保持原返回位置，喵~ */
   function help(topic = '') {
     remember();

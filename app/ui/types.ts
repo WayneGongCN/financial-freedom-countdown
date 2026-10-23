@@ -6,6 +6,7 @@ export interface FieldModel {
   id: string; label: string; value: string; unit?: string; hint?: string; error?: string;
   kind?: 'text' | 'number' | 'month' | 'select' | 'choice' | 'checkbox';
   options?: Option[]; disabled?: boolean;
+  slider?: { min: number; max: number; step: number };
 }
 export interface RowModel { label: string; value: string; tone?: Tone }
 export interface HeroModel { label: string; value: string; unit?: string; tone?: Tone; note?: string }
@@ -13,21 +14,23 @@ export interface MilestoneModel { id: string; title: string; value: string; rule
 export interface SectionModel {
   id: string; title?: string; fields: FieldModel[]; help?: string; note?: string;
   destination?: string; summary?: string;
+  collapsed?: boolean;
 }
 export interface EditorModel {
   title: string; note?: string; sections: SectionModel[]; error?: string;
-  preview?: HeroModel; rows?: RowModel[]; canSave: boolean; saveLabel?: string;
+  preview?: HeroModel; rows?: RowModel[]; targetName?: string; equation?: string; canSave: boolean; saveLabel?: string;
 }
 export interface OverviewModel {
-  empty: boolean; noGoals: boolean; basis: string; basisLabel: string; title: string; titleHelp: string;
+  empty: boolean; noGoals: boolean; basis: string; basisLabel: string; canChangeBasis: boolean; title: string; titleHelp: string;
   hero: HeroModel; target: string; coverage: string; progress: number | null;
+  coreMetrics: { label: string; value: string; unit: string }[];
   balances: { label: string; value: string; unit: string; tone: Tone }[];
   projected: { title: string; value: string; note: string } | null;
   assumptions: string[]; milestones: MilestoneModel[]; statusNote: string | null;
 }
 export interface EvaluationModel {
   hero: HeroModel; rows: RowModel[]; impactRows: RowModel[]; impactHero: HeroModel | null;
-  comparisonNote: string; basis: string; basisLabel: string; error?: string;
+  comparisonNote: string; basis: string; basisLabel: string; canChangeBasis: boolean; error?: string;
 }
 
 export interface ChangeProps {

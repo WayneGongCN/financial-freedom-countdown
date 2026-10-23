@@ -11,8 +11,6 @@ export interface MonthlyRow {
   expenses: number;
   netCashFlow: number;
   investmentTotal: number;
-  investmentCash: number | null;
-  investmentPriceChange: number | null;
   inflationAdjustmentReal: number | null;
 }
 
@@ -48,7 +46,7 @@ export function simulatePlan(planInput: Plan, projectInput: Project | null = nul
       month: 0, assets: initial + upfront.net, priceIndex: 1,
       activeIncome: upfront.activeIncome, externalIncome: upfront.passiveIncome,
       expenses: upfront.expenses - upfront.savings, netCashFlow: upfront.net,
-      investmentTotal: 0, investmentCash: 0, investmentPriceChange: 0, inflationAdjustmentReal: 0,
+      investmentTotal: 0, inflationAdjustmentReal: 0,
     };
     result.rows.push(first);
     if (!finiteRow(first)) {
@@ -66,13 +64,11 @@ export function simulatePlan(planInput: Plan, projectInput: Project | null = nul
       const expenses = annualValue(plan.currentExpenses, plan, month, 'currentExpenses') / 12 + cash.expenses - cash.savings;
       if (expenses < 0) throw new RangeError('节省费用不能超过该月支出');
       const investmentTotal = previous.assets * monthlyReturn;
-      const investmentCash = plan.cashYield === null ? null : previous.assets * plan.cashYield / 12;
       const index = optionalPriceIndex(plan, month);
       const netCashFlow = activeIncome + externalIncome - expenses;
       const row: MonthlyRow = {
         month, assets: previous.assets + investmentTotal + netCashFlow, priceIndex: index,
-        activeIncome, externalIncome, expenses, netCashFlow, investmentTotal, investmentCash,
-        investmentPriceChange: investmentCash === null ? null : investmentTotal - investmentCash,
+        activeIncome, externalIncome, expenses, netCashFlow, investmentTotal,
         inflationAdjustmentReal: index === null || previous.priceIndex === null ? null
           : previous.assets * (1 / index - 1 / previous.priceIndex),
       };

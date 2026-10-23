@@ -28,9 +28,9 @@ describe('计划草稿与正式方案', () => {
   });
   it('空通胀、明确零通胀和自定义通胀独立处理', () => {
     const plan = fixtureDocument().plan;
-    expect(parsePlanDraft({ ...planDraft(plan), inflationMode: 'unknown' }, plan).value?.inflationRate).toBeNull();
-    expect(parsePlanDraft({ ...planDraft(plan), inflationMode: 'zero' }, plan).value?.inflationRate).toBe(0);
-    expect(parsePlanDraft({ ...planDraft(plan), inflationMode: 'custom', inflation: '' }, plan).value).toBeNull();
+    expect(parsePlanDraft({ ...planDraft(plan), inflation: '' }, plan).value?.inflationRate).toBeNull();
+    expect(parsePlanDraft({ ...planDraft(plan), inflation: '0' }, plan).value?.inflationRate).toBe(0);
+    expect(parsePlanDraft({ ...planDraft(plan), inflation: '3' }, plan).value?.inflationRate).toBe(0.03);
   });
   it('编辑预览不污染正式计划，取消后保持原值', () => {
     const { result } = renderHook(() => ({ api: useFinanceDocument(), editor: usePlanEditor() }), { wrapper: wrapperFor() });
@@ -42,19 +42,26 @@ describe('计划草稿与正式方案', () => {
     expect(result.current.editor.model).toBeNull();
     expect(result.current.api.document.plan.currentExpenses?.amount).toBe(120000);
   });
-  it('子步骤确认仅修改父草稿，取消子步骤恢复进入前状态', () => {
+  it('同一会话调整多项配置，取消全部恢复，保存一次提交全部配置', () => {
     const { result } = renderHook(() => ({ api: useFinanceDocument(), editor: usePlanEditor() }), { wrapper: wrapperFor() });
     act(() => result.current.editor.begin());
-    act(() => result.current.editor.enterStep('income'));
     act(() => result.current.editor.change('incomeGrowth', 'inflation'));
-    act(() => result.current.editor.cancelStep());
+    act(() => result.current.editor.change('external', '24000'));
+    act(() => result.current.editor.change('horizon', '600'));
+    expect(result.current.api.document.plan.activeIncome?.growth.kind).toBe('fixed');
+    act(() => result.current.editor.cancel());
+    act(() => result.current.editor.begin());
     expect(result.current.editor.draft?.incomeGrowth).toBe('fixed');
-    act(() => result.current.editor.enterStep('income'));
+    expect(result.current.editor.draft?.external).toBe('0');
+    expect(result.current.editor.draft?.horizon).toBe('1200');
     act(() => result.current.editor.change('incomeGrowth', 'inflation'));
-    act(() => result.current.editor.confirmStep());
+    act(() => result.current.editor.change('external', '24000'));
+    act(() => result.current.editor.change('horizon', '600'));
     expect(result.current.api.document.plan.activeIncome?.growth.kind).toBe('fixed');
     act(() => { expect(result.current.editor.save()).toBe(true); });
     expect(result.current.api.document.plan.activeIncome?.growth.kind).toBe('inflation');
+    expect(result.current.api.document.plan.externalIncome?.amount).toBe(24000);
+    expect(result.current.api.document.plan.horizonMonths).toBe(600);
   });
 });
 
@@ -65,9 +72,9 @@ describe('目标编辑', () => {
     expect(parseGoalDraft({ ...draft, rightWindow: 'annualized' }).value).toBeNull();
     expect(parseGoalDraft({ ...draft, rightBasis: 'real' }).value).toBeNull();
   });
-  it('拒绝重复收益组成，允许固定金额目标独立选择购买力', () => {
+  it('拒绝空收益组成，允许固定金额目标独立选择购买力', () => {
     const draft = goalDraft(createDefaultGoals()[0]!);
-    expect(parseGoalDraft({ ...draft, 'left:investment-total': 'true' }).value).toBeNull();
+    expect(parseGoalDraft({ ...draft, 'left:investment-total': 'false', 'left:external-income': 'false' }).value).toBeNull();
     const amount = { ...draft, leftKind: 'assets', rightType: 'amount', amount: '1000000', amountUnit: 'capital', amountBasis: 'real' };
     expect(parseGoalDraft(amount).value?.right).toEqual({ kind: 'amount', amount: 1000000, unit: 'capital', basis: 'real' });
   });

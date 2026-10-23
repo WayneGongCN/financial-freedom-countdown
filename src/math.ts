@@ -14,7 +14,7 @@ export function required<T>(value: T | null, field: string): T {
   return value;
 }
 
-/** 转换复合年率，不用于简单现金分配率，喵~ */
+/** 将复合年收益率换算为等价月收益率，喵~ */
 export function annualToMonthly(annualRate: number): number {
   if (!Number.isFinite(annualRate) || annualRate <= -1) throw new RangeError('年率必须有限且大于 -100%');
   return Math.expm1(Math.log1p(annualRate) / 12);
@@ -26,14 +26,12 @@ export function priceIndex(plan: Plan, month: number): number {
   return Math.pow(1 + required(plan.inflationRate, 'inflationRate'), month / 12);
 }
 
-/** 从用户锁定的收益假设派生唯一的名义总回报，喵~ */
+/** 读取用户锁定的未扣通胀年化总收益率，喵~ */
 export function nominalReturn(plan: Plan): number {
-  const assumption = required(plan.investmentReturn, 'investmentReturn');
-  return assumption.kind === 'nominal' ? assumption.annualRate
-    : (1 + assumption.annualRate) * (1 + required(plan.inflationRate, 'inflationRate')) - 1;
+  return required(plan.investmentReturn, 'investmentReturn').annualRate;
 }
 
-/** 返回精确实际年收益，不重复扣除通胀，喵~ */
+/** 仅作为派生结果计算扣除通胀后的购买力年收益率，喵~ */
 export function realReturn(plan: Plan): number {
   return (1 + nominalReturn(plan)) / (1 + required(plan.inflationRate, 'inflationRate')) - 1;
 }

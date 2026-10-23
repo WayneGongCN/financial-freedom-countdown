@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, type ReactNode, type RefObject } from 'react';
+import { useEffect, useId, useRef, useState, type ReactNode, type RefObject } from 'react';
 import type { Action, ChangeProps, FieldModel, HeroModel, Option, RowModel, Tone } from './types';
 import s from './ui.module.css';
 
@@ -50,9 +50,34 @@ export function TextField({ field, onChange }: ChangeProps & { field: FieldModel
     {(field.error || field.hint) && <p id={`${id}-description`} className={field.error ? s.error : s.caption}>{field.error ?? field.hint}</p>}</div>;
 }
 
+/** 读取滑块可展示的有限十进制数，空白和输入中间态继续保留在文本框中，喵~ */
+function sliderNumber(value: string): number | null {
+  const text = value.trim().replaceAll(',', '');
+  return /^[+-]?(?:\d+(?:\.\d*)?|\.\d+)$/.test(text) && Number.isFinite(Number(text)) ? Number(text) : null;
+}
+
+/** 将精确输入与滑块绑定到同一草稿，手输扩展区间且拖动时不收缩范围，喵~ */
+export function SliderField({ field, onChange }: ChangeProps & { field: FieldModel & { slider: NonNullable<FieldModel['slider']> } }) {
+  const id = useId();
+  const [range, setRange] = useState(field.slider);
+  const numeric = sliderNumber(field.value);
+  const valid = numeric !== null && !field.error;
+  if (valid && (numeric < range.min || numeric > range.max)) {
+    setRange({ ...range, min: Math.min(range.min, numeric), max: Math.max(range.max, numeric) });
+  }
+  const value = valid ? Math.max(range.min, Math.min(range.max, numeric)) : Math.max(range.min, Math.min(range.max, 0));
+  return <div className={s.sliderField}>
+    <TextField field={field} onChange={onChange} />
+    <input id={id} className={s.slider} type="range" min={range.min} max={range.max} step={range.step} value={value}
+      aria-label={`${field.label}滑块`} aria-valuetext={valid ? `${field.value}${field.unit ?? ''}` : '未填写有效数值，拖动以设置'}
+      disabled={field.disabled} onChange={(event) => onChange(field.id, event.target.value)} />
+  </div>;
+}
+
 /** 将已准备好的字段按控件类别呈现，不解析字段业务含义，喵~ */
 export function FormField({ field, onChange }: ChangeProps & { field: FieldModel }) {
   const id = useId();
+  if (field.slider) return <SliderField field={{ ...field, slider: field.slider }} onChange={onChange} />;
   if (field.kind === 'choice') return <div className={s.group}><span className={s.fieldLabel}>{field.label}</span><ChoiceGroup label={field.label} value={field.value} options={field.options ?? []} onSelect={(value) => onChange(field.id, value)} />{(field.error || field.hint) && <p className={field.error ? s.error : s.caption}>{field.error ?? field.hint}</p>}</div>;
   if (field.kind === 'checkbox') return <label className={s.checkbox}><input type="checkbox" checked={field.value === 'true'} disabled={field.disabled} onChange={(event) => onChange(field.id, String(event.target.checked))} />{field.label}</label>;
   if (field.kind === 'select') return <div className={s.field}><label className={s.fieldLabel} htmlFor={id}>{field.label}</label><select id={id} value={field.value} disabled={field.disabled} className={s.select} onChange={(event) => onChange(field.id, event.target.value)}>{field.options?.map((o) => <option key={o.value} value={o.value} disabled={o.disabled}>{o.label}</option>)}</select>{(field.error || field.hint) && <p className={field.error ? s.error : s.caption}>{field.error ?? field.hint}</p>}</div>;
@@ -114,7 +139,7 @@ export function BottomNav({ active, onSelect }: { active: string;
 }
 
 /** 使用原生模态对话框提供焦点约束和关闭后的焦点恢复，喵~ */
-export function BottomSheet({ open, title, children, footer, onClose, onBack }: { open: boolean; title: string; children: ReactNode; footer?: ReactNode;
+export function BottomSheet({ open, title, children, footer, summary, onClose, onBack }: { open: boolean; title: string; children: ReactNode; footer?: ReactNode; summary?: ReactNode;
   /** 请求取消当前面板，组件不提交业务数据，喵~ */
   onClose: Action;
   /** 请求返回上一级面板，喵~ */
@@ -139,6 +164,7 @@ export function BottomSheet({ open, title, children, footer, onClose, onBack }: 
     else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); }
   }}>
     <header className={s.dialogHeader}>{onBack && <HelpLink onClick={onBack}>‹ 返回</HelpLink>}<h2 id={label}>{title}</h2><HelpLink onClick={onClose}>取消</HelpLink></header>
+    {summary && <div className={s.dialogSummary}>{summary}</div>}
     <div className={s.dialogContent}>{children}</div>{footer && <footer className={s.dialogFooter}>{footer}</footer>}
   </dialog>;
 }

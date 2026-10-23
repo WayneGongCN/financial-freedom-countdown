@@ -32,7 +32,7 @@ function rateOnly(goal: Goal): boolean {
   const left = goal.left;
   const right = goal.right.metric;
   if (left.kind !== 'flow' || right.kind !== 'flow' || left.basis !== right.basis || left.aggregation !== right.aggregation) return false;
-  return [...left.components, ...right.components].every((part) => part.startsWith('investment-'));
+  return [...left.components, ...right.components].every((part) => part === 'investment-total');
 }
 
 /** 在同一候选月份判断条件，参照基准时只替换右侧数据路径，喵~ */

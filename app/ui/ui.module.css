@@ -47,6 +47,19 @@
 .track { height: 4px; background: var(--color-line); width: 100%; }
 .fill { height: 100%; background: var(--color-text); }
 .balances { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; }
+.coreMetrics { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.coreMetric { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; padding: 12px 8px; min-width: 0; background: var(--color-canvas); border-radius: var(--radius); text-align: left; }
+.coreMetric strong { font-size: 22px; line-height: 30px; overflow-wrap: anywhere; }
+.coreMetric .caption { font-size: 11px; }
+.coreControls { display: flex; flex-direction: column; gap: 8px; }
+.sliderField { display: flex; flex-direction: column; }
+.sliderField .field { gap: 4px; }
+.sliderField .fieldBox { padding: 8px 12px; flex-direction: row; align-items: center; justify-content: space-between; gap: 8px; }
+.sliderField .inputLine { width: 56%; gap: 4px; }
+.sliderField .inputLine input { text-align: right; }
+.sliderField .unit { flex-shrink: 0; }
+.slider { display: block; width: 100%; height: 28px; margin: 0; accent-color: var(--color-text); cursor: pointer; }
+.equation { padding: 12px; border-radius: var(--radius); background: var(--color-canvas); font-size: 14px; line-height: 24px; overflow-wrap: anywhere; }
 .metric { display: flex; flex-direction: column; gap: 4px; }
 .metricValue { font-size: 36px; font-weight: 700; line-height: 48px; overflow-wrap: anywhere; }
 .metric .number { gap: 4px; }
@@ -66,9 +79,17 @@
 .dialog { position: fixed; inset: auto 0 0; margin: 0 auto; padding: 0; width: 100%; max-width: 480px; max-height: calc(100dvh - 32px); height: min(85dvh, 900px); border: 0; border-radius: 12px 12px 0 0; background: white; overflow: hidden; }
 .dialog[open] { display: flex; flex-direction: column; }
 .dialog::backdrop { background: rgb(0 0 0 / 16%); }
-.dialogHeader { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 24px 24px 16px; flex-shrink: 0; }
+.dialogHeader { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 24px 8px; flex-shrink: 0; }
 .dialogHeader h2 { font-size: 20px; font-weight: 500; line-height: 30px; }
 .dialogContent { overflow-y: auto; padding: 0 24px 24px; min-height: 0; flex: 1; }
+.dialogSummary { padding: 0 24px 12px; flex-shrink: 0; }
+.editorPreview { display: flex; flex-direction: column; gap: 4px; padding: 12px; background: var(--color-canvas); border-radius: var(--radius); }
+.editorPreview .hero { gap: 0; }
+.editorPreview .heroValue { font-size: 28px; line-height: 36px; }
+.editorPreview .heroLabel, .editorPreview .heroUnit { font-size: 12px; line-height: 20px; }
+.editorPreview .hero .caption { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.editorPreview .row { font-size: 12px; line-height: 20px; }
+.editorPreview .row > :last-child { font-size: 14px; line-height: 20px; }
 .dialogFooter { padding: 12px 24px max(16px, env(safe-area-inset-bottom)); border-top: 1px solid var(--color-line); display: flex; gap: 12px; flex-shrink: 0; }
 .guideSection { scroll-margin-top: 16px; }
 .guideSection h2 { font-size: 18px; font-weight: 500; line-height: 28px; margin-bottom: 12px; }
@@ -76,4 +97,5 @@
 .guideIndex { display: flex; flex-direction: column; gap: 4px; }
 .guideIndex a { font-size: 14px; line-height: 24px; padding: 10px 0; text-decoration: none; border-bottom: 1px solid var(--color-line); }
 .file { font-size: 12px; width: 100%; }
-@media (max-width: 350px) { .header, .content, .dialogHeader, .dialogContent, .dialogFooter { padding-left: 16px; padding-right: 16px; } .heroValue { font-size: 42px; } .balances { gap: 16px; } }
+@media (max-width: 350px) { .header, .content, .dialogHeader, .dialogContent, .dialogSummary, .dialogFooter { padding-left: 16px; padding-right: 16px; } .heroValue { font-size: 42px; } .balances { gap: 16px; } .coreMetric { padding: 10px 6px; } .coreMetric strong { font-size: 20px; } }
+@media (max-height: 560px) { .dialog { height: calc(100dvh - 16px); max-height: calc(100dvh - 16px); } .dialogHeader { padding-top: 4px; padding-bottom: 4px; } .dialogSummary { padding-bottom: 8px; } .editorPreview { padding: 8px 12px; gap: 2px; } .editorPreview .heroValue { font-size: 24px; line-height: 30px; } }
