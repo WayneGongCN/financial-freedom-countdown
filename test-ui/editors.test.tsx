@@ -172,7 +172,8 @@ describe('持久化与缓存边界', () => {
     act(() => result.current.api.commit({ ...result.current.api.document, preferences: { ...result.current.api.document.preferences, displayBasis: 'nominal' } }));
     expect(result.current.results.calculated).toBe(original);
     expect(result.current.results.overview.hero).toMatchObject({ value: '15', unit: '年 5 个月' });
-    expect(result.current.results.overview.projected?.value).toContain('473.18');
+    expect(result.current.results.overview.projected.value).toBe('300 万元');
+    expect(result.current.results.overview.projected.note).toContain('473.18 万（名义金额）');
   });
 });
 
@@ -202,7 +203,9 @@ describe('预测状态和结果契约', () => {
     document.plan = { ...fixtureDocument().plan, inflationRate: null };
     rerender();
     expect(result.current.overview.hero.value).toBe('—');
-    expect(result.current.overview.projected).toBeNull();
+    expect(result.current.overview.projected.value).toBe('—');
+    expect(result.current.overview.projected.note).toContain(result.current.overview.hero.note);
+    expect(result.current.overview.projected.note).toContain('通胀未设置，暂按名义金额展示');
   });
   it('已达成保留真实覆盖率并限制进度条', () => {
     const document = fixtureDocument(); document.plan.initialAssets = 6000000;

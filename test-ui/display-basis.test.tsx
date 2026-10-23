@@ -18,31 +18,41 @@ const expense: Project = { id: 'test-expense', name: '一次消费', notes: '', 
   growth: { kind: 'fixed' }, priceAnchorMonth: 0, startMonth: 0, endMonth: null, frequency: 'once', continuesAfterFreedom: true }] };
 
 describe('金额显示与通胀假设', () => {
-  it.each([null, 0])('通胀为 %s 时按名义金额显示且不提供无效切换', (inflationRate) => {
-    const document = documentWithInflation(inflationRate);
+  it('未知通胀保留名义金额并在目标小字明确说明', () => {
+    const document = documentWithInflation(null);
     const calculated = calculateResults(document, expense);
     const overview = overviewModel(document, calculated);
     const evaluation = evaluationModel(document, calculated.comparison);
-    expect(overview).toMatchObject({ basis: 'nominal', canChangeBasis: false });
+    expect(overview).toMatchObject({ basis: 'nominal', basisLabel: '通胀未设置，暂按名义金额展示' });
     expect(evaluation).toMatchObject({ basis: 'nominal', canChangeBasis: false });
-    expect(overview.basisLabel).toContain('名义金额');
-    expect(evaluation.basisLabel).toContain('名义金额');
-    expect(overview.projected?.value).not.toContain('—');
-    expect(overview.projected?.note).toContain('名义金额');
-    expect(overview.projected?.note).not.toContain('基准月约');
+    expect(overview.projected.value).not.toContain('—');
+    expect(overview.projected.note).toBe('通胀未设置，暂按名义金额展示');
     expect(evaluation.impactHero?.value).not.toBe('—');
     expect(document.preferences.displayBasis).toBe('real');
-    expect(document.plan.inflationRate).toBe(inflationRate);
+    expect(document.plan.inflationRate).toBeNull();
   });
 
-  it.each([0.03, -0.01])('非零通胀 %s 保留购买力切换及用户偏好', (inflationRate) => {
+  it.each([0, 0.03, -0.01])('已设置通胀 %s 时总览固定展示基准月购买力和届时名义金额', (inflationRate) => {
     const document = documentWithInflation(inflationRate);
     const calculated = calculateResults(document, expense);
-    expect(overviewModel(document, calculated)).toMatchObject({ basis: 'real', canChangeBasis: true });
-    expect(evaluationModel(document, calculated.comparison)).toMatchObject({ basis: 'real', canChangeBasis: true });
+    const overview = overviewModel(document, calculated);
+    expect(overview).toMatchObject({ basis: 'real', basisLabel: '购买力基准 · 2026 年 10 月' });
+    expect(overview.projected.value).not.toBe('—');
+    expect(overview.projected.note).toMatch(/^2026 年 10 月购买力 · 届时约 .+（名义金额）$/);
+    expect(overview).not.toHaveProperty('canChangeBasis');
     const nominalDocument = { ...document, preferences: { ...document.preferences, displayBasis: 'nominal' as const } };
-    expect(overviewModel(nominalDocument, calculated)).toMatchObject({ basis: 'nominal', canChangeBasis: true });
-    expect(evaluationModel(nominalDocument, calculated.comparison)).toMatchObject({ basis: 'nominal', canChangeBasis: true });
+    expect(overviewModel(nominalDocument, calculated)).toEqual(overview);
+    expect(nominalDocument.preferences.displayBasis).toBe('nominal');
+    expect(nominalDocument.plan.inflationRate).toBe(inflationRate);
+  });
+
+  it.each([null, 0, 0.03, -0.01])('消费评估在通胀 %s 时保留原有显示偏好与切换规则', (inflationRate) => {
+    const document = documentWithInflation(inflationRate);
+    const calculated = calculateResults(document, expense);
+    const canChangeBasis = inflationRate !== null && inflationRate !== 0;
+    expect(evaluationModel(document, calculated.comparison)).toMatchObject({ basis: canChangeBasis ? 'real' : 'nominal', canChangeBasis });
+    const nominalDocument = { ...document, preferences: { ...document.preferences, displayBasis: 'nominal' as const } };
+    expect(evaluationModel(nominalDocument, calculated.comparison)).toMatchObject({ basis: 'nominal', canChangeBasis });
   });
 
   it('显示币值切换保留同一次推演及达成日期', () => {
@@ -50,29 +60,51 @@ describe('金额显示与通胀假设', () => {
     const { result } = renderHook(() => { const api = useFinanceDocument(); return { api, results: useFinanceResults(api.document) }; }, { wrapper: wrapperFor(memoryStorage(document)) });
     const calculated = result.current.results.calculated;
     const originalHero = result.current.results.overview.hero;
-    const originalAmount = result.current.results.overview.projected?.value;
+    const originalOverview = result.current.results.overview;
     act(() => { result.current.api.commit({ ...result.current.api.document, preferences: { ...result.current.api.document.preferences, displayBasis: 'nominal' } }); });
     expect(result.current.results.calculated).toBe(calculated);
     expect(result.current.results.overview.hero).toEqual(originalHero);
-    expect(result.current.results.overview.projected?.value).not.toBe(originalAmount);
+    expect(result.current.results.overview).toEqual(originalOverview);
     expect(result.current.api.document.goals).toEqual(document.goals);
   });
 
-  it('三项核心参数使用当前年金额，收益率统一显示未扣通胀的输入', () => {
+  it('五项核心参数按资产、收入、支出、收益和通胀排序并标记编辑字段', () => {
     const document = documentWithInflation(0.03);
     document.plan.investmentReturn = { annualRate: 0.08 };
     const overview = overviewModel(document, calculateResults(document, null));
     expect(overview.coreMetrics).toEqual([
-      { label: '年收入', value: '24', unit: '万元/年' },
-      { label: '年化总收益率', value: '8', unit: '%' },
-      { label: '年支出', value: '12', unit: '万元/年' },
+      { fieldId: 'assets', label: '当前可投资资产', value: '60', unit: '万元' },
+      { fieldId: 'income', label: '年收入', value: '24', unit: '万元/年' },
+      { fieldId: 'expenses', label: '年支出', value: '12', unit: '万元/年' },
+      { fieldId: 'returnRate', label: '年化总收益率', value: '8', unit: '%' },
+      { fieldId: 'inflation', label: '通胀率', value: '3', unit: '%' },
     ]);
+    expect(overview).not.toHaveProperty('assumptions');
+    expect(overview.balances).toEqual([{ label: '当前缺口', value: '240', unit: '万', tone: 'negative' }]);
   });
 
   it('未填写的核心参数显示未知值', () => {
     const { result } = renderHook(() => useFinanceDocument(), { wrapper: wrapperFor(memoryStorage(null)) });
     const document = result.current.document;
-    expect(overviewModel(document, calculateResults(document, null)).coreMetrics.map((metric) => metric.value)).toEqual(['—', '—', '—']);
+    document.plan.inflationRate = null;
+    expect(overviewModel(document, calculateResults(document, null)).coreMetrics.map((metric) => metric.value)).toEqual(['—', '—', '—', '—', '—']);
+  });
+
+  it('非资产目标保留当前指标和缺口', () => {
+    const document = documentWithInflation(0.03);
+    document.preferences.primaryGoalId = 'passive-vs-income';
+    const overview = overviewModel(document, calculateResults(document, null));
+    expect(overview.balances.map((balance) => balance.label)).toEqual(['当前指标', '当前缺口']);
+  });
+
+  it.each([null, 0.03])('预测缺失时目标模块仍返回占位金额和现有原因，通胀为 %s', (inflationRate) => {
+    const document = documentWithInflation(inflationRate);
+    document.plan.investmentReturn = null;
+    const overview = overviewModel(document, calculateResults(document, null));
+    expect(overview.projected).toMatchObject({ title: '预计达成月份的目标', value: '—' });
+    expect(overview.projected.note).toContain(overview.hero.note);
+    expect(overview.projected.note).toContain(overview.basisLabel);
+    expect(overview.hero).toMatchObject({ value: '—' });
   });
 
   it('草稿预览保留目标名称和缺失原因，目标缺失时可安全显示', () => {
@@ -90,10 +122,11 @@ describe('金额显示与通胀假设', () => {
 });
 
 describe('新文档默认值与旧档兼容', () => {
-  it('新建与重新开始使用零通胀和名义金额', () => {
+  it('新建与重新开始保留零通胀及名义金额存储偏好，总览使用购买力显示', () => {
     const { result } = renderHook(() => useFinanceDocument(), { wrapper: wrapperFor(memoryStorage(null)) });
     expect(result.current.document.plan.inflationRate).toBe(0);
     expect(result.current.document.preferences.displayBasis).toBe('nominal');
+    expect(overviewModel(result.current.document, calculateResults(result.current.document, null)).basis).toBe('real');
     act(() => { result.current.commit(documentWithInflation(null)); });
     act(() => { result.current.reset(); });
     expect(result.current.document.plan.inflationRate).toBe(0);

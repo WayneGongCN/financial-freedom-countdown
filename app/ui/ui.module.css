@@ -47,11 +47,39 @@
 .track { height: 4px; background: var(--color-line); width: 100%; }
 .fill { height: 100%; background: var(--color-text); }
 .balances { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; }
-.coreMetrics { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
-.coreMetric { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; padding: 12px 8px; min-width: 0; background: var(--color-canvas); border-radius: var(--radius); text-align: left; }
+.coreMetrics { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.coreMetric { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; padding: 12px; min-width: 0; background: var(--color-canvas); border-radius: var(--radius); text-align: left; }
 .coreMetric strong { font-size: 22px; line-height: 30px; overflow-wrap: anywhere; }
-.coreMetric .caption { font-size: 11px; }
+.metricNumber { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px; min-width: 0; }
+.assetMetric { grid-column: 1 / -1; padding: 16px; }
+.assetMetric strong { font-size: 48px; line-height: 62px; }
+.forecastGrid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; gap: 16px; padding: 16px 0; border-block: 1px solid var(--color-line); }
+.forecastGrid > * { min-width: 0; }
+.forecastGrid .heroLabel { font-size: 12px; line-height: 20px; }
+.forecastGrid .heroValue { font-size: 28px; line-height: 36px; }
+.forecastGrid .heroUnit { font-size: 12px; line-height: 20px; }
+.forecastGrid .number { gap: 4px; }
+.forecastGrid .subvalue { font-size: 24px; line-height: 36px; overflow-wrap: anywhere; }
 .coreControls { display: flex; flex-direction: column; gap: 8px; }
+.planField { border-radius: var(--radius); }
+.planField[data-highlighted='true'] { outline: 2px solid var(--color-text); outline-offset: 2px; background: var(--color-soft); }
+.compactSection { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.compactTitle { font-size: 14px; font-weight: 500; line-height: 22px; color: var(--color-secondary); }
+.compactSection .field { gap: 4px; min-width: 0; }
+.compactSection .fieldBox { padding: 8px 12px; flex-direction: row; align-items: center; justify-content: space-between; gap: 8px; min-height: 44px; }
+.compactSection .inputLine { width: 50%; min-width: 0; gap: 4px; }
+.compactSection .inputLine input { min-width: 0; font-size: 14px; font-weight: 500; line-height: 22px; text-align: right; }
+.compactSection .unit { font-size: 12px; flex-shrink: 0; }
+.compactSection .select { min-height: 44px; padding: 8px; min-width: 0; }
+.compactSection .choice { font-size: 12px; padding: 8px; }
+.compactSection .link { align-self: flex-end; }
+.growthFields { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 8px; }
+.growthFields > :first-child { display: grid; grid-template-columns: 84px minmax(0, 1fr); align-items: center; column-gap: 8px; flex: 1 1 220px; }
+.growthFields > :first-child > p { grid-column: 1 / -1; }
+.growthFields > :nth-child(2) { flex: 0 0 88px; margin-left: auto; }
+.growthFields > :nth-child(2) .fieldBox { padding: 8px; }
+.growthFields > :nth-child(2) .fieldLabel { position: absolute; width: 1px; height: 1px; padding: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+.growthFields > :nth-child(2) .inputLine { width: 100%; }
 .sliderField { display: flex; flex-direction: column; }
 .sliderField .field { gap: 4px; }
 .sliderField .fieldBox { padding: 8px 12px; flex-direction: row; align-items: center; justify-content: space-between; gap: 8px; }
@@ -97,5 +125,5 @@
 .guideIndex { display: flex; flex-direction: column; gap: 4px; }
 .guideIndex a { font-size: 14px; line-height: 24px; padding: 10px 0; text-decoration: none; border-bottom: 1px solid var(--color-line); }
 .file { font-size: 12px; width: 100%; }
-@media (max-width: 350px) { .header, .content, .dialogHeader, .dialogContent, .dialogSummary, .dialogFooter { padding-left: 16px; padding-right: 16px; } .heroValue { font-size: 42px; } .balances { gap: 16px; } .coreMetric { padding: 10px 6px; } .coreMetric strong { font-size: 20px; } }
+@media (max-width: 350px) { .header, .content, .dialogHeader, .dialogContent, .dialogSummary, .dialogFooter { padding-left: 16px; padding-right: 16px; } .heroValue { font-size: 42px; } .balances { gap: 16px; } .coreMetric { padding: 10px; } .coreMetric strong { font-size: 20px; } .assetMetric strong { font-size: 42px; } .forecastGrid { gap: 12px; } .forecastGrid .subvalue { font-size: 22px; } }
 @media (max-height: 560px) { .dialog { height: calc(100dvh - 16px); max-height: calc(100dvh - 16px); } .dialogHeader { padding-top: 4px; padding-bottom: 4px; } .dialogSummary { padding-bottom: 8px; } .editorPreview { padding: 8px 12px; gap: 2px; } .editorPreview .heroValue { font-size: 24px; line-height: 30px; } }

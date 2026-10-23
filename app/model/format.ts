@@ -1,4 +1,4 @@
-import type { Basis, GoalForecast, Growth, MetricResult, Plan } from '../../src/index';
+import type { Basis, GoalForecast, MetricResult, Plan } from '../../src/index';
 import { displayMetric } from '../../src/index';
 import type { HeroModel } from '../ui/types';
 
@@ -55,10 +55,4 @@ export function forecastText(forecast: GoalForecast): string {
 export function shownMetric(result: MetricResult, plan: Plan, basis: Basis): number | null {
   if (result.status !== 'available') return null;
   try { const value = displayMetric(result, plan, basis).value; return Number.isFinite(value) ? value : null; } catch { return null; }
-}
-
-/** 描述独立增长规则，保持随通胀与固定百分比的区别，喵~ */
-export function growthLabel(growth: Growth | undefined): string {
-  if (!growth) return '未填写';
-  return growth.kind === 'fixed' ? '固定名义金额' : growth.kind === 'inflation' ? '随通胀' : `每年 ${numberText(growth.annualRate * 100)}%`;
 }

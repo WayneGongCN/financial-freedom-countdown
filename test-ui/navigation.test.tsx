@@ -51,6 +51,17 @@ describe('完整计划路由与草稿生命周期', () => {
     expect(result.current.location.search).toBe('?step=left');
   });
 
+  it.each(['plan', 'goal'] as const)('打开与关闭 %s 面板时保留底页滚动位置', (kind) => {
+    const { result } = renderHook(() => useFinanceNavigation(), { wrapper: navigationWrapper() });
+    const scroll = document.createElement('main');
+    result.current.scrollRef.current = scroll;
+    scroll.scrollTop = 240;
+    act(() => result.current.openPanel(kind));
+    expect(scroll.scrollTop).toBe(240);
+    act(() => result.current.closePanel());
+    expect(scroll.scrollTop).toBe(240);
+  });
+
   it('打开计划后浏览器后退一次关闭整面板并丢弃未提交草稿', () => {
     const { result } = renderHook(() => ({ workspace: useFinanceWorkspace(), navigate: useNavigate() }), { wrapper: navigationWrapper() });
     act(() => result.current.workspace.openPlan());

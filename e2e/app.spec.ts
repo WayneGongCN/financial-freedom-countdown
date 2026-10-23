@@ -11,10 +11,11 @@ function exampleDocument() {
 }
 
 /** 在页面运行前注入合成方案，喵~ */
-async function seed(page: Page, inflationRate: number | null = 0.03) {
+async function seed(page: Page, inflationRate: number | null = 0.03, update?: (document: ReturnType<typeof exampleDocument>) => void) {
   const document = exampleDocument();
   document.plan.inflationRate = inflationRate;
   document.preferences.displayBasis = 'real';
+  update?.(document);
   await page.addInitScript(({ key, value }) => { if (!localStorage.getItem(key)) localStorage.setItem(key, value); }, { key: DEFAULT_STORAGE_KEY, value: JSON.stringify(document) });
 }
 
@@ -53,14 +54,14 @@ test('新方案默认不计通胀，填写三项核心参数和资产即可预�
   await expect(page.getByRole('region', { name: '草稿预测' })).toContainText('年 9 个月');
   await page.getByRole('button', { name: '完成并保存' }).click();
   await expect(page.getByRole('radiogroup', { name: '金额显示口径', exact: true })).toHaveCount(0);
-  await expect(page.getByText('名义金额 · 不计通胀（0%）', { exact: true })).toBeVisible();
+  await expect(page.getByRole('region', { name: '达成预测', exact: true })).toContainText(/2026 年 10 月购买力.*届时约/);
   await page.reload();
   await expect(page.getByText('年 9 个月', { exact: true })).toBeVisible();
 });
 
 test('说明锚点往返保留编辑草稿，取消后正式计划不变', async ({ page }) => {
   await seed(page); await page.goto('/');
-  await page.getByRole('button', { name: /工资.*调整假设/ }).click();
+  await page.getByRole('button', { name: /当前可投资资产/ }).click();
   await page.getByLabel('当前年支出', { exact: true }).fill('180000');
   const dialog = page.getByRole('dialog', { name: '我的计划', exact: true });
   await dialog.getByRole('region', { name: '预测期限', exact: true }).getByRole('button', { name: '说明 ↗', exact: true }).click();
@@ -84,14 +85,15 @@ test('添加购买力目标，评估消费及额外收益，显示口径不改�
   await page.getByRole('radio', { name: '保持购买力', exact: true }).click();
   await page.getByRole('button', { name: '保存目标', exact: true }).click();
   await expect(page.getByRole('button', { name: /攒够一百万购买力/ })).toContainText('2 年 9 个月');
-  await page.getByRole('radio', { name: '名义金额', exact: true }).click();
-  await expect(page.getByRole('button', { name: /攒够一百万购买力/ })).toContainText('2 年 9 个月');
+  await expect(page.getByRole('radiogroup', { name: '金额显示口径', exact: true })).toHaveCount(0);
   await page.getByRole('button', { name: '评估', exact: true }).click();
   await page.getByLabel('消费金额', { exact: true }).fill('10000');
   await expect(page.getByText('预计延后', { exact: true })).toBeVisible();
   await expect(page.getByText('15 年 5 个月 → 15 年 6 个月')).toBeVisible();
   await page.getByText('金额影响', { exact: true }).click();
   await expect(page.getByText('本金投入减少', { exact: true })).toBeVisible();
+  await page.getByRole('radio', { name: '名义金额', exact: true }).click();
+  await expect(page.getByText('15 年 5 个月 → 15 年 6 个月')).toBeVisible();
   await page.getByRole('radio', { name: '基准月购买力', exact: true }).click();
   await expect(page.getByText('15 年 5 个月 → 15 年 6 个月')).toBeVisible();
   await page.getByRole('button', { name: '＋ 添加额外收入', exact: true }).click();
@@ -116,7 +118,7 @@ test('未来合同付款、有限期限与无效输入不展示旧结果', async
 
 test('浏览器后退与 Esc 取消整次计划编辑，不落地草稿', async ({ page }) => {
   await seed(page); await page.goto('/');
-  const trigger = page.getByRole('button', { name: /工资.*调整假设/ });
+  const trigger = page.getByRole('button', { name: /当前可投资资产/ });
   await trigger.click();
   const dialog = page.getByRole('dialog', { name: '我的计划', exact: true });
   await dialog.getByLabel('当前可投资资产', { exact: true }).fill('700000');
@@ -139,6 +141,19 @@ for (const width of [320, 375, 390, 430, 1280]) {
     await page.evaluate(() => document.fonts.ready);
     await expect(page.getByRole('navigation', { name: '主导航' })).toBeVisible();
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    const forecast = page.getByRole('region', { name: '达成预测', exact: true });
+    const targetBox = (await forecast.getByText('预计达成月份的目标', { exact: true }).boundingBox())!;
+    const timeBox = (await forecast.getByText('预计还需', { exact: true }).boundingBox())!;
+    expect(targetBox.x).toBeLessThan(timeBox.x);
+    expect(Math.abs(targetBox.y - timeBox.y)).toBeLessThan(3);
+    const forecastBox = (await forecast.boundingBox())!;
+    const progressBox = (await page.getByRole('progressbar', { name: '主目标完成进度' }).boundingBox())!;
+    expect(progressBox.y).toBeGreaterThanOrEqual(forecastBox.y + forecastBox.height);
+    const metrics = page.locator('[aria-label="计划核心指标"]');
+    const assetBox = (await metrics.getByRole('button', { name: /当前可投资资产/ }).boundingBox())!;
+    const incomeBox = (await metrics.getByRole('button', { name: /年收入/ }).boundingBox())!;
+    expect(assetBox.width).toBeGreaterThan(incomeBox.width * 1.8);
+    expect(assetBox.y + assetBox.height).toBeLessThanOrEqual(incomeBox.y);
     const main = page.getByRole('main');
     await main.evaluate((element) => { element.scrollTop = element.scrollHeight; });
     await expect(page.getByRole('button', { name: '评估一笔消费' })).toBeInViewport();
@@ -151,7 +166,7 @@ for (const width of [320, 375, 390, 430, 1280]) {
 
 test('同页调整不增加步骤历史，模态限制焦点且关闭后恢复', async ({ page }) => {
   await seed(page); await page.goto('/');
-  const trigger = page.getByRole('button', { name: /工资.*调整假设/ });
+  const trigger = page.getByRole('button', { name: /当前可投资资产/ });
   await trigger.click();
   const dialog = page.getByRole('dialog', { name: '我的计划', exact: true });
   await dialog.getByLabel('收入增长方式', { exact: true }).selectOption('inflation');
@@ -189,11 +204,13 @@ test('刷新目标指标深链接恢复已提交口径，取消子步骤恢复�
 });
 
 for (const inflation of [null, 0, 0.03, -0.02]) {
-  test(`通胀 ${inflation} 的金额口径在总览和评估保持一致`, async ({ page }) => {
+  test(`通胀 ${inflation} 总览优先购买力且评估保留原有切换`, async ({ page }) => {
     await seed(page, inflation); await page.goto('/');
     const enabled = inflation !== null && inflation !== 0;
-    await expect(page.getByRole('radiogroup', { name: '金额显示口径', exact: true })).toHaveCount(enabled ? 1 : 0);
-    if (!enabled) await expect(page.getByText(/购买力基准/)).toHaveCount(0);
+    await expect(page.getByRole('radiogroup', { name: '金额显示口径', exact: true })).toHaveCount(0);
+    const forecast = page.getByRole('region', { name: '达成预测', exact: true });
+    if (inflation === null) await expect(forecast).toContainText('通胀未设置，暂按名义金额展示');
+    else await expect(forecast).toContainText(/2026 年 10 月购买力.*届时约/);
     await page.getByRole('button', { name: '评估', exact: true }).click();
     await page.getByLabel('消费金额', { exact: true }).fill('10000');
     await page.getByText('金额影响', { exact: true }).click();
@@ -206,19 +223,18 @@ for (const inflation of [null, 0, 0.03, -0.02]) {
   });
 }
 
-test('三项指标和滑块在手机首屏可见，拖动与输入同步且草稿预测固定', async ({ page }) => {
+test('收入卡片定位编辑，拖动与输入同步且草稿预测固定', async ({ page }) => {
   await seed(page); await page.setViewportSize({ width: 390, height: 844 }); await page.goto('/');
   const metrics = page.locator('[aria-label="计划核心指标"]');
-  for (const label of ['年收入', '年化总收益率', '年支出']) await expect(metrics.getByRole('button', { name: new RegExp(label) })).toBeInViewport();
+  await expect(metrics.getByRole('button')).toHaveCount(5);
+  for (const label of ['当前可投资资产', '年收入', '年支出', '年化总收益率', '通胀率']) await expect(metrics.getByRole('button', { name: new RegExp(label) })).toBeInViewport();
   await metrics.getByRole('button', { name: /年收入/ }).click();
   const dialog = page.getByRole('dialog');
   const preview = dialog.getByRole('region', { name: '草稿预测' });
   const storedBefore = await page.evaluate((key) => localStorage.getItem(key), DEFAULT_STORAGE_KEY);
   const forecastBefore = await preview.innerText();
-  for (const label of ['税后年主动收入', '年化总收益率', '当前年支出', '年通胀率']) {
-    await expect(dialog.getByLabel(label, { exact: true })).toBeInViewport({ ratio: 1 });
-    await expect(dialog.getByRole('slider', { name: `${label}滑块`, exact: true })).toBeInViewport({ ratio: 1 });
-  }
+  await expect(dialog.getByLabel('税后年主动收入', { exact: true })).toBeInViewport({ ratio: 1 });
+  await expect(dialog.getByRole('slider', { name: '税后年主动收入滑块', exact: true })).toBeInViewport({ ratio: 1 });
   const incomeSlider = dialog.getByRole('slider', { name: '税后年主动收入滑块' });
   await incomeSlider.focus(); await page.keyboard.press('ArrowRight');
   await expect(dialog.getByLabel('税后年主动收入', { exact: true })).toHaveValue('241000');
@@ -315,4 +331,179 @@ test('通胀在主面板滑动编辑，不改变收益率，支持取消与保�
   await page.getByRole('button', { name: /年化总收益率/ }).click();
   await expect(inflation).toHaveValue('2');
   await expect(rate).toHaveValue('8');
+});
+
+
+test('五张核心卡片定位对应编辑区，只滚动表单并短暂高亮，关闭恢复焦点', async ({ page }) => {
+  await seed(page); await page.setViewportSize({ width: 390, height: 844 }); await page.goto('/');
+  const metrics = page.locator('[aria-label="计划核心指标"]');
+  const fields = [
+    ['assets', '当前可投资资产', '当前可投资资产'],
+    ['income', '年收入', '税后年主动收入'],
+    ['expenses', '年支出', '当前年支出'],
+    ['returnRate', '年化总收益率', '年化总收益率'],
+    ['inflation', '通胀率', '年通胀率'],
+  ];
+  await expect(metrics.getByRole('button')).toHaveCount(5);
+  const main = page.getByRole('main');
+  const dialog = page.getByRole('dialog', { name: '我的计划', exact: true });
+  for (const [fieldId, cardLabel, inputLabel] of fields) {
+    const trigger = metrics.getByRole('button', { name: new RegExp(cardLabel!) });
+    await trigger.scrollIntoViewIfNeeded();
+    const mainScroll = await main.evaluate((element) => element.scrollTop);
+    await trigger.click();
+    const field = dialog.locator(`[data-plan-field="${fieldId}"]`);
+    await expect(field).toHaveAttribute('data-highlighted', 'true');
+    await expect(field.getByLabel(inputLabel!, { exact: true })).toBeInViewport({ ratio: 1 });
+    await expect(field.getByRole('slider', { name: `${inputLabel}滑块`, exact: true })).toBeInViewport({ ratio: 1 });
+    expect(await page.evaluate(() => document.activeElement?.tagName)).not.toBe('INPUT');
+    expect(await main.evaluate((element) => element.scrollTop)).toBe(mainScroll);
+    if (fieldId === 'assets') await expect(field).not.toHaveAttribute('data-highlighted', 'true', { timeout: 3000 });
+    await dialog.getByRole('button', { name: '取消', exact: true }).click();
+    await expect(trigger).toBeFocused();
+  }
+  await metrics.getByRole('button', { name: /当前可投资资产/ }).click();
+  await expect(dialog.locator('[data-plan-field="assets"]')).toHaveAttribute('data-highlighted', 'true');
+  expect(await page.evaluate(() => document.activeElement?.tagName)).not.toBe('INPUT');
+  await page.keyboard.press('Escape');
+  await expect(metrics.getByRole('button', { name: /当前可投资资产/ })).toBeFocused();
+});
+
+test('资产置于编辑首位，滑条步进与精确超范围金额统一保存，取消不落地', async ({ page }) => {
+  await seed(page); await page.goto('/');
+  const trigger = page.locator('[aria-label="计划核心指标"]').getByRole('button', { name: /当前可投资资产/ });
+  await trigger.click();
+  const dialog = page.getByRole('dialog', { name: '我的计划', exact: true });
+  await expect(dialog.locator('[data-plan-field]').first()).toHaveAttribute('data-plan-field', 'assets');
+  const assets = dialog.getByLabel('当前可投资资产', { exact: true });
+  const slider = dialog.getByRole('slider', { name: '当前可投资资产滑块', exact: true });
+  const preview = dialog.getByRole('region', { name: '草稿预测' });
+  const originalForecast = await preview.innerText();
+  await expect(slider).toHaveAttribute('min', '0');
+  await expect(slider).toHaveAttribute('max', '10000000');
+  await expect(slider).toHaveAttribute('step', '10000');
+  await page.screenshot({ path: `test-results/plan-editor-${test.info().project.name}.png` });
+  await slider.focus(); await page.keyboard.press('ArrowRight');
+  await expect(assets).toHaveValue('610000');
+  await assets.fill('650123.45');
+  await expect(assets).toHaveValue('650123.45');
+  await expect.poll(() => preview.innerText()).not.toBe(originalForecast);
+  await assets.fill('15000000.25');
+  await expect(slider).toHaveAttribute('max', '15000000.25');
+  await expect(assets).toHaveValue('15000000.25');
+  await dialog.getByRole('button', { name: '完成并保存', exact: true }).click();
+  await page.reload();
+  const saved = await page.evaluate((key) => localStorage.getItem(key), DEFAULT_STORAGE_KEY);
+  expect(JSON.parse(saved!).plan.initialAssets).toBe(15000000.25);
+  await trigger.click();
+  await expect(assets).toHaveValue('15000000.25');
+  await assets.fill('700000');
+  await dialog.getByRole('button', { name: '取消', exact: true }).click();
+  expect(await page.evaluate((key) => localStorage.getItem(key), DEFAULT_STORAGE_KEY)).toBe(saved);
+  await trigger.click();
+  await expect(assets).toHaveValue('15000000.25');
+});
+
+test('紧凑增长配置始终展开，共用说明入口，自定义增长校验并保存恢复', async ({ page }) => {
+  await seed(page); await page.setViewportSize({ width: 390, height: 844 }); await page.goto('/?panel=plan');
+  const dialog = page.getByRole('dialog', { name: '我的计划', exact: true });
+  const incomeGrowth = dialog.getByRole('region', { name: '收入增长', exact: true });
+  const expenseGrowth = dialog.getByRole('region', { name: '支出增长', exact: true });
+  await expect(incomeGrowth.getByRole('button', { name: '说明 ↗', exact: true })).toHaveCount(0);
+  await expect(expenseGrowth.getByRole('button', { name: '说明 ↗', exact: true })).toHaveCount(1);
+  for (const label of ['收入增长方式', '支出增长方式']) {
+    const select = dialog.getByLabel(label, { exact: true });
+    expect(await select.evaluate((element) => element.closest('details') === null)).toBe(true);
+    await select.selectOption('custom');
+  }
+  const incomeRate = dialog.getByLabel('收入年增长率', { exact: true });
+  const expenseRate = dialog.getByLabel('支出年增长率', { exact: true });
+  await incomeRate.fill('-100');
+  await expenseRate.fill('2.5');
+  await expect(incomeGrowth.getByText('增长率必须大于 -100%', { exact: true })).toBeVisible();
+  await expect(dialog.getByRole('button', { name: '完成并保存', exact: true })).toBeDisabled();
+  await incomeRate.fill('4.5');
+  await incomeGrowth.scrollIntoViewIfNeeded();
+  await page.screenshot({ path: `test-results/plan-growth-${test.info().project.name}.png` });
+  await dialog.getByRole('button', { name: '完成并保存', exact: true }).click();
+  await page.reload();
+  await page.locator('[aria-label="计划核心指标"]').getByRole('button', { name: /年收入/ }).click();
+  await expect(dialog.getByLabel('收入增长方式', { exact: true })).toHaveValue('custom');
+  await expect(incomeRate).toHaveValue('4.5');
+  await expect(dialog.getByLabel('支出增长方式', { exact: true })).toHaveValue('custom');
+  await expect(expenseRate).toHaveValue('2.5');
+  const saved = await page.evaluate((key) => JSON.parse(localStorage.getItem(key)!), DEFAULT_STORAGE_KEY);
+  expect(saved.plan.activeIncome.growth).toEqual({ kind: 'custom', annualRate: 0.045 });
+  expect(saved.plan.currentExpenses.growth).toEqual({ kind: 'custom', annualRate: 0.025 });
+});
+
+test('总览购买力不受旧名义金额偏好影响，移除假设行与重复资产指标', async ({ page }) => {
+  await seed(page, 0.03, (document) => { document.preferences.displayBasis = 'nominal'; }); await page.goto('/');
+  await expect(page.getByRole('radiogroup', { name: '金额显示口径', exact: true })).toHaveCount(0);
+  await expect(page.getByText(/工资.*调整假设/)).toHaveCount(0);
+  await expect(page.getByText(/^年化总收益 /)).toHaveCount(0);
+  await expect(page.getByText('已积累', { exact: true })).toHaveCount(0);
+  await expect(page.getByRole('region', { name: '达成预测', exact: true })).toContainText(/2026 年 10 月购买力.*届时约/);
+  const saved = await page.evaluate((key) => JSON.parse(localStorage.getItem(key)!), DEFAULT_STORAGE_KEY);
+  expect(saved.preferences.displayBasis).toBe('nominal');
+});
+
+test('缺少收益假设时保留两栏预测位置与原因，非资产目标保留当前指标', async ({ page }) => {
+  await seed(page, 0.03, (document) => { document.plan.investmentReturn = null; }); await page.goto('/');
+  const forecast = page.getByRole('region', { name: '达成预测', exact: true });
+  await expect(forecast.getByText('预计达成月份的目标', { exact: true })).toBeVisible();
+  await expect(forecast.getByText('预计还需', { exact: true })).toBeVisible();
+  await expect(forecast.getByText('—', { exact: true })).toHaveCount(2);
+  await expect(forecast).toContainText(/收益|缺少|补充|未设置/);
+  await page.getByRole('button', { name: /被动收入覆盖主动收入/ }).click();
+  await page.getByRole('button', { name: '保存并设为主目标', exact: true }).click();
+  await expect(page.getByText('当前指标', { exact: true })).toBeVisible();
+});
+
+
+test('320px 短视口保持总览位置，表单滚动与增长换行不遮挡保存', async ({ page }) => {
+  await seed(page); await page.setViewportSize({ width: 320, height: 460 }); await page.goto('/');
+  await page.evaluate(() => document.fonts.ready);
+  const main = page.getByRole('main');
+  const trigger = page.locator('[aria-label="计划核心指标"]').getByRole('button', { name: /通胀率/ });
+  await trigger.scrollIntoViewIfNeeded();
+  const mainScroll = await main.evaluate((element) => element.scrollTop);
+  expect(mainScroll).toBeGreaterThan(0);
+  await trigger.click();
+  await expect.poll(() => main.evaluate((element) => element.scrollTop)).toBe(mainScroll);
+  const dialog = page.getByRole('dialog', { name: '我的计划', exact: true });
+  const field = dialog.locator('[data-plan-field="inflation"]');
+  const save = dialog.getByRole('button', { name: '完成并保存', exact: true });
+  await expect(field).toHaveAttribute('data-highlighted', 'true');
+  await expect(field.getByLabel('年通胀率', { exact: true })).toBeInViewport();
+  await expect(save).toBeInViewport({ ratio: 1 });
+  const preview = dialog.getByRole('region', { name: '草稿预测' });
+  const previewTop = (await preview.boundingBox())!.y;
+  await dialog.getByText('本地数据与备份', { exact: true }).scrollIntoViewIfNeeded();
+  await expect(field).not.toBeInViewport();
+  await expect(save).toBeInViewport({ ratio: 1 });
+  await expect(preview).toBeInViewport();
+  expect((await preview.boundingBox())!.y).toBeCloseTo(previewTop, 0);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  await dialog.getByRole('button', { name: '取消', exact: true }).click();
+  await expect(trigger).toBeFocused();
+  await expect.poll(() => main.evaluate((element) => element.scrollTop)).toBe(mainScroll);
+  await trigger.click();
+  for (const name of ['收入', '支出']) {
+    const select = dialog.getByLabel(`${name}增长方式`, { exact: true });
+    await select.selectOption('custom');
+    const rate = dialog.getByLabel(`${name}年增长率`, { exact: true });
+    await rate.fill(name === '收入' ? '4.5' : '2.5');
+    const selectBox = (await select.boundingBox())!;
+    const rateBox = (await rate.boundingBox())!;
+    expect(rateBox.y).toBeGreaterThanOrEqual(selectBox.y + selectBox.height);
+    const region = dialog.getByRole('region', { name: `${name}增长`, exact: true });
+    expect(await region.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
+    await expect(save).toBeInViewport({ ratio: 1 });
+  }
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  await save.click();
+  const saved = await page.evaluate((key) => JSON.parse(localStorage.getItem(key)!), DEFAULT_STORAGE_KEY);
+  expect(saved.plan.activeIncome.growth).toEqual({ kind: 'custom', annualRate: 0.045 });
+  expect(saved.plan.currentExpenses.growth).toEqual({ kind: 'custom', annualRate: 0.025 });
 });

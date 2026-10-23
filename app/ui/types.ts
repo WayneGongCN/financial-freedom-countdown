@@ -1,5 +1,6 @@
 export type Tone = 'neutral' | 'positive' | 'negative';
 export type Action = () => void;
+export type PlanFieldId = 'assets' | 'income' | 'expenses' | 'returnRate' | 'inflation';
 export type Change = (id: string, value: string) => void;
 export interface Option { value: string; label: string; disabled?: boolean }
 export interface FieldModel {
@@ -15,18 +16,19 @@ export interface SectionModel {
   id: string; title?: string; fields: FieldModel[]; help?: string; note?: string;
   destination?: string; summary?: string;
   collapsed?: boolean;
+  layout?: 'compact' | 'growth';
 }
 export interface EditorModel {
   title: string; note?: string; sections: SectionModel[]; error?: string;
   preview?: HeroModel; rows?: RowModel[]; targetName?: string; equation?: string; canSave: boolean; saveLabel?: string;
 }
 export interface OverviewModel {
-  empty: boolean; noGoals: boolean; basis: string; basisLabel: string; canChangeBasis: boolean; title: string; titleHelp: string;
+  empty: boolean; noGoals: boolean; basis: string; basisLabel: string; title: string; titleHelp: string;
   hero: HeroModel; target: string; coverage: string; progress: number | null;
-  coreMetrics: { label: string; value: string; unit: string }[];
+  coreMetrics: { fieldId: PlanFieldId; label: string; value: string; unit: string }[];
   balances: { label: string; value: string; unit: string; tone: Tone }[];
-  projected: { title: string; value: string; note: string } | null;
-  assumptions: string[]; milestones: MilestoneModel[]; statusNote: string | null;
+  projected: { title: string; value: string; note: string };
+  milestones: MilestoneModel[];
 }
 export interface EvaluationModel {
   hero: HeroModel; rows: RowModel[]; impactRows: RowModel[]; impactHero: HeroModel | null;

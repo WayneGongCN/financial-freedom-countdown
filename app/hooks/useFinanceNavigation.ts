@@ -28,6 +28,7 @@ export function useFinanceNavigation() {
   function go(page: string) { remember(); navigate(page); }
   /** 将编辑器状态表达为非敏感查询参数，喵~ */
   function openPanel(kind: 'plan' | 'goal', id?: string) {
+    remember();
     const query = new URLSearchParams({ panel: kind }); if (id) query.set('goal', id);
     navigate({ pathname: location.pathname === '/evaluate' ? '/evaluate' : '/', search: query.toString() }, { state: { panelParent: true } });
   }

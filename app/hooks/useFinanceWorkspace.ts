@@ -6,6 +6,7 @@ import { usePlanEditor } from './usePlanEditor';
 import { useGoalEditor } from './useGoalEditor';
 import { useProjectEditor } from './useProjectEditor';
 import { useDataTransfer } from './useDataTransfer';
+import type { PlanFieldId } from '../ui/types';
 
 /** 协调编辑会话与导航，向页面容器提供完整交互接口，喵~ */
 export function useFinanceWorkspace() {
@@ -33,7 +34,7 @@ export function useFinanceWorkspace() {
   }, [nav.guide, nav.panel, nav.step, nav.goalId]);
 
   /** 打开计划面板并初始化独立草稿，喵~ */
-  function openPlan() { plan.begin(); nav.openPanel('plan'); }
+  function openPlan(fieldId?: PlanFieldId) { plan.begin(fieldId); nav.openPanel('plan'); }
   /** 打开目标编辑或新增面板，喵~ */
   function openGoal(id?: string) { goal.begin(id); nav.openPanel('goal', id); }
   /** 显示偏好只更新文档偏好字段，喵~ */
@@ -59,5 +60,10 @@ export function useFinanceWorkspace() {
   function makePrimary() { if (goal.makePrimary()) nav.closePanel(); }
   /** 重置文档时清除所有旧编辑会话，喵~ */
   function reset() { if (transfer.reset()) { plan.cancel(); goal.cancel(); nav.closePanel(); } }
-  return { api, nav, plan, goal, project, transfer, results, openPlan, openGoal, changeBasis, savePlan, saveGoal, closeEditor, importFile, enterGoalSide, removeGoal, makePrimary, reset };
+  return { api, nav, plan, goal, project, transfer, results,
+    /**
+     * 打开统一计划面板并创建待保存草稿，喵~
+     * @param fieldId 卡片对应的编辑字段，省略时从资产开始编辑，喵~
+     */
+    openPlan, openGoal, changeBasis, savePlan, saveGoal, closeEditor, importFile, enterGoalSide, removeGoal, makePrimary, reset };
 }

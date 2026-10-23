@@ -15,11 +15,11 @@ export function FinanceApp() {
     {nav.guide ? <GuideView topics={guideTopics} active={nav.anchor} onHelp={nav.help} /> : nav.location.pathname === '/evaluate'
       ? <EvaluationView model={results.evaluation} sections={project.sections} timingRows={project.timingRows} canAdd={project.canAdd} onChange={project.change} onHelp={nav.help} onBasisChange={changeBasis}
         onAddExpense={() => project.add('expense')} onAddIncome={() => project.add('active-income')} onRemove={project.remove} onClear={project.clear} onEditPlan={openPlan} />
-      : <OverviewView model={results.overview} initialField={plan.initialField} initialTarget={plan.initialTarget} onInitialExpense={plan.changeInitialExpense} onHelp={nav.help} onBasisChange={changeBasis} onEditPlan={openPlan} onEditGoal={(id) => openGoal(id ?? api.document.preferences.primaryGoalId ?? undefined)} onAddGoal={() => openGoal()} onEvaluate={() => nav.go('/evaluate')} />}
+      : <OverviewView model={results.overview} initialField={plan.initialField} initialTarget={plan.initialTarget} onInitialExpense={plan.changeInitialExpense} onHelp={nav.help} onEditPlan={openPlan} onEditGoal={(id) => openGoal(id ?? api.document.preferences.primaryGoalId ?? undefined)} onAddGoal={() => openGoal()} onEvaluate={() => nav.go('/evaluate')} />}
     <BottomSheet open={!nav.guide && nav.panel === 'plan' && !!plan.model} title={plan.model?.title ?? '我的计划'} onClose={closeEditor}
       summary={plan.model && <EditorPreview model={plan.model} />}
       footer={<Button onClick={savePlan} disabled={!plan.model?.canSave}>{plan.model?.saveLabel ?? '完成并保存'}</Button>}>
-      {plan.model && <div className={s.stack}><PlanEditorView model={plan.model} onChange={plan.change} onHelp={nav.help} />
+      {plan.model && <div className={s.stack}><PlanEditorView model={plan.model} targetField={plan.targetField} active={!nav.guide && nav.panel === 'plan'} onChange={plan.change} onHelp={nav.help} />
         <Disclosure title="本地数据与备份"><p className={s.caption}>只保存于当前浏览器。导出文件包含你的财务数据，请妥善保管。</p><Button secondary onClick={transfer.download}>导出正式方案</Button><label className={s.caption}>导入 JSON 备份<input className={s.file} type="file" accept="application/json,.json" onChange={(event) => { void importFile(event.target.files?.[0]); event.target.value = ''; }} /></label>{transfer.message && <p className={s.caption} role="status">{transfer.message}</p>}</Disclosure>
       </div>}
     </BottomSheet>
