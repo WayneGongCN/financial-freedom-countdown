@@ -20,6 +20,14 @@ test('其余计划配置同页修改，实时预测固定且只在最终保存�
   const originalForecast = await preview.innerText();
   await expect(dialog.getByRole('button', { name: '确认并返回', exact: true })).toHaveCount(0);
   await expect(dialog.getByRole('button', { name: '‹ 返回', exact: true })).toHaveCount(0);
+  await expect(dialog.getByRole('button', { name: /说明.*↗/ })).toHaveCount(0);
+  const budgetSelect = dialog.getByRole('combobox', { name: '自由后预算来源', exact: true });
+  await expect(budgetSelect).toHaveValue('current');
+  const budgetSelectBox = (await budgetSelect.boundingBox())!;
+  const budgetLabelBox = (await dialog.getByText('自由后预算来源', { exact: true }).boundingBox())!;
+  expect(budgetLabelBox.x).toBeLessThan(budgetSelectBox.x);
+  expect(Math.abs(budgetLabelBox.y + budgetLabelBox.height / 2 - budgetSelectBox.y - budgetSelectBox.height / 2)).toBeLessThan(2);
+  await expect(dialog.getByRole('radiogroup', { name: '自由后预算来源', exact: true })).toHaveCount(0);
   await page.getByLabel('收入增长方式', { exact: true }).selectOption('custom');
   await page.getByLabel('收入年增长率', { exact: true }).fill('5');
   await page.getByLabel('支出增长方式', { exact: true }).selectOption('custom');
@@ -27,9 +35,11 @@ test('其余计划配置同页修改，实时预测固定且只在最终保存�
   await page.getByLabel('其他年被动收入（税费后）', { exact: true }).fill('12000');
   await page.getByLabel('其他被动收入增长方式', { exact: true }).selectOption('custom');
   await page.getByLabel('其他被动收入年增长率', { exact: true }).fill('1');
-  await page.getByRole('radio', { name: '单独设置', exact: true }).click();
+  await page.getByRole('combobox', { name: '自由后预算来源', exact: true }).selectOption('custom');
   await page.getByLabel('自由后年支出', { exact: true }).fill('180000');
   await page.getByLabel('自由后预算增长方式', { exact: true }).selectOption('inflation');
+  await dialog.getByRole('region', { name: '自由后生活预算', exact: true }).scrollIntoViewIfNeeded();
+  await page.screenshot({ path: `test-results/plan-budget-${test.info().project.name}.png` });
   await page.getByLabel('最多向后预测', { exact: true }).fill('600');
   await expect(page).toHaveURL(/\?panel=plan$/);
   await expect(page.getByRole('dialog')).toHaveCount(1);
@@ -48,11 +58,12 @@ test('其余计划配置同页修改，实时预测固定且只在最终保存�
   await expect(page.getByLabel('收入增长方式', { exact: true })).toHaveValue('custom');
   await expect(page.getByLabel('收入年增长率', { exact: true })).toHaveValue('5');
   await expect(page.getByLabel('其他年被动收入（税费后）', { exact: true })).toHaveValue('12000');
+  await expect(dialog.getByRole('combobox', { name: '自由后预算来源', exact: true })).toHaveValue('custom');
   await expect(page.getByLabel('自由后年支出', { exact: true })).toHaveValue('180000');
   await expect(page.getByLabel('最多向后预测', { exact: true })).toHaveValue('600');
 });
 
-test('其他被动收入增加积累速度，当前资本门槛默认不直接抵扣，说明往返保留全部草稿', async ({ page }) => {
+test('其他被动收入增加积累速度，预算下拉切换保留草稿且取消不提交', async ({ page }) => {
   await seed(page); await page.goto('/?panel=plan');
   const dialog = page.getByRole('dialog', { name: '我的计划', exact: true });
   const preview = dialog.getByRole('region', { name: '草稿预测' });
@@ -62,16 +73,15 @@ test('其他被动收入增加积累速度，当前资本门槛默认不直接�
   await external.fill('12000');
   await expect.poll(() => preview.innerText()).not.toBe(before);
   await expect(preview).toContainText('3,000,000 元');
-  await page.getByRole('radio', { name: '单独设置', exact: true }).click();
+  await page.getByRole('combobox', { name: '自由后预算来源', exact: true }).selectOption('custom');
   await page.getByLabel('自由后年支出', { exact: true }).fill('180000');
-  await page.getByRole('radio', { name: '引用当前支出', exact: true }).click();
+  await page.getByRole('combobox', { name: '自由后预算来源', exact: true }).selectOption('current');
   await expect(page.getByLabel('自由后年支出', { exact: true })).toHaveCount(0);
-  await page.getByRole('radio', { name: '单独设置', exact: true }).click();
+  await page.getByRole('combobox', { name: '自由后预算来源', exact: true }).selectOption('custom');
   await expect(page.getByLabel('自由后年支出', { exact: true })).toHaveValue('180000');
-  const section = dialog.getByRole('region', { name: '其他被动收入', exact: true });
-  await section.getByRole('button', { name: '说明 ↗', exact: true }).click();
-  await expect(page).toHaveURL(/\/guide#passive-income$/);
-  await page.getByRole('button', { name: '‹ 返回', exact: true }).click();
+  await expect(dialog.getByRole('button', { name: /说明.*↗/ })).toHaveCount(0);
+  await expect(dialog.getByRole('link')).toHaveCount(0);
+  await expect(page).toHaveURL(/\?panel=plan$/);
   await expect(dialog).toBeVisible();
   await expect(external).toHaveValue('12000');
   await expect(page.getByLabel('自由后年支出', { exact: true })).toHaveValue('180000');

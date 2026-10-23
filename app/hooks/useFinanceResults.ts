@@ -55,8 +55,8 @@ export function overviewModel(document: FinanceDocument, calculated: CalculatedR
     title: primary?.name ?? '设置你的自由目标', titleHelp: primary?.right.kind === 'metric' && primary.right.metric.kind === 'required-capital' ? 'withdrawal-rate' : 'goal-amount-basis',
     hero, target: `当前目标 ${numberText(target === null ? null : target / 10000)} ${unit}`,
     coverage: coverage === null ? '进度待补充' : `已完成 ${numberText(coverage * 100, 1)}%`, progress: coverage === null ? null : Math.max(0, Math.min(100, coverage * 100)),
-    balances: [...(isCapital ? [] : [{ label: '当前指标', value: numberText(left === null ? null : left / 10000), unit, tone: 'positive' as const }]),
-      { label: gap !== null && gap < 0 ? '已超出目标' : '当前缺口', value: numberText(gap === null ? null : Math.abs(gap) / 10000), unit, tone: gap !== null && gap <= 0 ? 'positive' : 'negative' }],
+    gap: { label: gap !== null && gap < 0 ? '已超出目标' : '当前缺口', value: numberText(gap === null ? null : Math.abs(gap) / 10000), unit, tone: gap !== null && gap <= 0 ? 'positive' : 'negative' },
+    balances: isCapital ? [] : [{ label: '当前指标', value: numberText(left === null ? null : left / 10000), unit, tone: 'positive' }],
     projected: { title: '预计达成月份的目标', value: futureValue === null ? '—' : `${numberText(futureValue / 10000)} ${unit === '万' ? '万元' : '万元/年'}`,
       note: futureValue === null ? `${hero.note ?? '该目标金额暂不可显示'} · ${display.basisLabel}`
         : basis === 'real' ? `${monthLabel(plan.baseMonth)}购买力 · 届时约 ${numberText(futureNominal === null ? null : futureNominal / 10000)} ${unit}（名义金额）`

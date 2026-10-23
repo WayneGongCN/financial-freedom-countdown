@@ -80,7 +80,8 @@ describe('金额显示与通胀假设', () => {
       { fieldId: 'inflation', label: '通胀率', value: '3', unit: '%' },
     ]);
     expect(overview).not.toHaveProperty('assumptions');
-    expect(overview.balances).toEqual([{ label: '当前缺口', value: '240', unit: '万', tone: 'negative' }]);
+    expect(overview.gap).toEqual({ label: '当前缺口', value: '240', unit: '万', tone: 'negative' });
+    expect(overview.balances).toEqual([]);
   });
 
   it('未填写的核心参数显示未知值', () => {
@@ -90,11 +91,34 @@ describe('金额显示与通胀假设', () => {
     expect(overviewModel(document, calculateResults(document, null)).coreMetrics.map((metric) => metric.value)).toEqual(['—', '—', '—', '—', '—']);
   });
 
-  it('非资产目标保留当前指标和缺口', () => {
+  it('非资产目标保留当前指标，独立缺口使用年流量单位', () => {
     const document = documentWithInflation(0.03);
     document.preferences.primaryGoalId = 'passive-vs-income';
     const overview = overviewModel(document, calculateResults(document, null));
-    expect(overview.balances.map((balance) => balance.label)).toEqual(['当前指标', '当前缺口']);
+    expect(overview.balances.map((balance) => balance.label)).toEqual(['当前指标']);
+    expect(overview.balances[0]?.unit).toBe('万/年');
+    expect(overview.gap).toMatchObject({ label: '当前缺口', unit: '万/年', tone: 'negative' });
+    expect(overview.gap.value).not.toBe('—');
+  });
+
+  it('未知资产的缺口保留未知值而不显示零', () => {
+    const document = documentWithInflation(0.03);
+    document.plan.initialAssets = null;
+    const overview = overviewModel(document, calculateResults(document, null));
+    expect(overview.gap).toEqual({ label: '当前缺口', value: '—', unit: '万', tone: 'negative' });
+    expect(overview.balances).toEqual([]);
+  });
+
+  it.each([
+    { assets: 3000000, label: '当前缺口', value: '0' },
+    { assets: 4000000, label: '已超出目标', value: '100' },
+  ])('已达成资产目标保留缺口与超额语义：$assets', ({ assets, label, value }) => {
+    const document = documentWithInflation(0.03);
+    document.plan.initialAssets = assets;
+    const overview = overviewModel(document, calculateResults(document, null));
+    expect(overview.gap).toEqual({ label, value, unit: '万', tone: 'positive' });
+    expect(overview.hero.value).toBe('已达成');
+    expect(overview.balances).toEqual([]);
   });
 
   it.each([null, 0.03])('预测缺失时目标模块仍返回占位金额和现有原因，通胀为 %s', (inflationRate) => {

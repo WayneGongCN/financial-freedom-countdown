@@ -51,8 +51,8 @@
 .coreMetric { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; padding: 12px; min-width: 0; background: var(--color-canvas); border-radius: var(--radius); text-align: left; }
 .coreMetric strong { font-size: 22px; line-height: 30px; overflow-wrap: anywhere; }
 .metricNumber { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px; min-width: 0; }
-.assetMetric { grid-column: 1 / -1; padding: 16px; }
 .assetMetric strong { font-size: 48px; line-height: 62px; }
+.gapMetric strong { font-size: 36px; line-height: 62px; }
 .forecastGrid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; gap: 16px; padding: 16px 0; border-block: 1px solid var(--color-line); }
 .forecastGrid > * { min-width: 0; }
 .forecastGrid .heroLabel { font-size: 12px; line-height: 20px; }
@@ -71,8 +71,8 @@
 .compactSection .inputLine input { min-width: 0; font-size: 14px; font-weight: 500; line-height: 22px; text-align: right; }
 .compactSection .unit { font-size: 12px; flex-shrink: 0; }
 .compactSection .select { min-height: 44px; padding: 8px; min-width: 0; }
-.compactSection .choice { font-size: 12px; padding: 8px; }
-.compactSection .link { align-self: flex-end; }
+.compactSection > .field:has(> .select) { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.5fr); align-items: center; column-gap: 8px; }
+.compactSection > .field:has(> .select) > p { grid-column: 1 / -1; }
 .growthFields { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 8px; }
 .growthFields > :first-child { display: grid; grid-template-columns: 84px minmax(0, 1fr); align-items: center; column-gap: 8px; flex: 1 1 220px; }
 .growthFields > :first-child > p { grid-column: 1 / -1; }

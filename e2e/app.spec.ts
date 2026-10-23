@@ -59,21 +59,31 @@ test('新方案默认不计通胀，填写三项核心参数和资产即可预�
   await expect(page.getByText('年 9 个月', { exact: true })).toBeVisible();
 });
 
-test('说明锚点往返保留编辑草稿，取消后正式计划不变', async ({ page }) => {
+test('计划无说明入口，取消放弃草稿且目标与消费评估帮助仍可跳转', async ({ page }) => {
   await seed(page); await page.goto('/');
+  const original = await page.evaluate((key) => localStorage.getItem(key), DEFAULT_STORAGE_KEY);
   await page.getByRole('button', { name: /当前可投资资产/ }).click();
-  await page.getByLabel('当前年支出', { exact: true }).fill('180000');
   const dialog = page.getByRole('dialog', { name: '我的计划', exact: true });
-  await dialog.getByRole('region', { name: '预测期限', exact: true }).getByRole('button', { name: '说明 ↗', exact: true }).click();
-  await expect(page).toHaveURL(/\/guide#return-assumptions/);
-  await expect(page.getByRole('heading', { name: '收益、通胀与长期假设' })).toBeInViewport();
-  await page.getByRole('link', { name: '目标定义与显示口径 ↗' }).click();
-  await page.getByRole('button', { name: '‹ 返回', exact: true }).click();
-  await expect(dialog).toBeVisible();
+  await dialog.getByLabel('当前年支出', { exact: true }).fill('180000');
+  await expect(dialog.getByRole('button', { name: /说明.*↗/ })).toHaveCount(0);
+  await expect(dialog.getByRole('link')).toHaveCount(0);
   await expect(page).toHaveURL(/\?panel=plan$/);
-  await expect(dialog.getByLabel('当前年支出', { exact: true })).toHaveValue('180000');
-  await page.getByRole('button', { name: '取消', exact: true }).click();
+  await dialog.getByRole('button', { name: '取消', exact: true }).click();
+  expect(await page.evaluate((key) => localStorage.getItem(key), DEFAULT_STORAGE_KEY)).toBe(original);
   await expect(page.getByText('当前目标 300 万', { exact: true })).toBeVisible();
+  await page.getByRole('button', { name: '资产覆盖生活支出', exact: true }).click();
+  const goal = page.getByRole('dialog', { name: '配置目标', exact: true });
+  await goal.getByRole('region', { name: '自定义左侧口径', exact: true }).getByRole('button', { name: '说明 ↗', exact: true }).click();
+  await expect(page).toHaveURL(/\/guide#passive-income$/);
+  await page.getByRole('button', { name: '‹ 返回', exact: true }).click();
+  await expect(goal).toBeVisible();
+  await goal.getByRole('button', { name: '取消', exact: true }).click();
+  await page.getByRole('button', { name: '评估', exact: true }).click();
+  await page.getByText('时间、增长与收益设置', { exact: true }).click();
+  await page.getByRole('button', { name: '报价与增长规则 ↗', exact: true }).click();
+  await expect(page).toHaveURL(/\/guide#growth-rules$/);
+  await page.getByRole('button', { name: '‹ 返回', exact: true }).click();
+  await expect(page).toHaveURL(/\/evaluate$/);
 });
 
 test('添加购买力目标，评估消费及额外收益，显示口径不改倒计时', async ({ page }) => {
@@ -151,9 +161,21 @@ for (const width of [320, 375, 390, 430, 1280]) {
     expect(progressBox.y).toBeGreaterThanOrEqual(forecastBox.y + forecastBox.height);
     const metrics = page.locator('[aria-label="计划核心指标"]');
     const assetBox = (await metrics.getByRole('button', { name: /当前可投资资产/ }).boundingBox())!;
+    await expect(metrics.getByRole('button')).toHaveCount(5);
+    const gap = metrics.locator('[data-goal-gap]');
+    const gapBox = (await gap.boundingBox())!;
+    expect(Math.abs(assetBox.y - gapBox.y)).toBeLessThan(1);
+    expect(assetBox.x + assetBox.width).toBeLessThanOrEqual(gapBox.x);
+    await expect(gap.getByRole('button')).toHaveCount(0);
+    await expect(page.getByText('当前缺口', { exact: true })).toHaveCount(1);
     const incomeBox = (await metrics.getByRole('button', { name: /年收入/ }).boundingBox())!;
-    expect(assetBox.width).toBeGreaterThan(incomeBox.width * 1.8);
+    const expensesBox = (await metrics.getByRole('button', { name: /年支出/ }).boundingBox())!;
     expect(assetBox.y + assetBox.height).toBeLessThanOrEqual(incomeBox.y);
+    expect(Math.abs(incomeBox.y - expensesBox.y)).toBeLessThan(1);
+    const returnBox = (await metrics.getByRole('button', { name: /年化总收益率/ }).boundingBox())!;
+    const inflationBox = (await metrics.getByRole('button', { name: /通胀率/ }).boundingBox())!;
+    expect(Math.abs(returnBox.y - inflationBox.y)).toBeLessThan(1);
+    expect(incomeBox.y + incomeBox.height).toBeLessThanOrEqual(returnBox.y);
     const main = page.getByRole('main');
     await main.evaluate((element) => { element.scrollTop = element.scrollHeight; });
     await expect(page.getByRole('button', { name: '评估一笔消费' })).toBeInViewport();
@@ -404,13 +426,11 @@ test('资产置于编辑首位，滑条步进与精确超范围金额统一保�
   await expect(assets).toHaveValue('15000000.25');
 });
 
-test('紧凑增长配置始终展开，共用说明入口，自定义增长校验并保存恢复', async ({ page }) => {
+test('紧凑增长配置始终展开且无说明入口，自定义增长校验并保存恢复', async ({ page }) => {
   await seed(page); await page.setViewportSize({ width: 390, height: 844 }); await page.goto('/?panel=plan');
   const dialog = page.getByRole('dialog', { name: '我的计划', exact: true });
   const incomeGrowth = dialog.getByRole('region', { name: '收入增长', exact: true });
-  const expenseGrowth = dialog.getByRole('region', { name: '支出增长', exact: true });
-  await expect(incomeGrowth.getByRole('button', { name: '说明 ↗', exact: true })).toHaveCount(0);
-  await expect(expenseGrowth.getByRole('button', { name: '说明 ↗', exact: true })).toHaveCount(1);
+  await expect(dialog.getByRole('button', { name: /说明.*↗/ })).toHaveCount(0);
   for (const label of ['收入增长方式', '支出增长方式']) {
     const select = dialog.getByLabel(label, { exact: true });
     expect(await select.evaluate((element) => element.closest('details') === null)).toBe(true);
@@ -507,3 +527,21 @@ test('320px 短视口保持总览位置，表单滚动与增长换行不遮挡�
   expect(saved.plan.activeIncome.growth).toEqual({ kind: 'custom', annualRate: 0.045 });
   expect(saved.plan.currentExpenses.growth).toEqual({ kind: 'custom', annualRate: 0.025 });
 });
+
+
+for (const { assets, label, amount } of [
+  { assets: 600000, label: '当前缺口', amount: '240' },
+  { assets: 3500000, label: '已超出目标', amount: '50' },
+]) {
+  test(`资产旁唯一展示${label}，缺口金额保留计算与单位`, async ({ page }) => {
+    await seed(page, 0.03, (document) => { document.plan.initialAssets = assets; }); await page.goto('/');
+    const metrics = page.locator('[aria-label="计划核心指标"]');
+    const gap = metrics.locator('[data-goal-gap]');
+    await expect(metrics.getByRole('button')).toHaveCount(5);
+    await expect(gap).toContainText(label);
+    await expect(gap).toContainText(new RegExp(`${amount}\\s*万`));
+    await expect(page.getByText(label, { exact: true })).toHaveCount(1);
+    expect(await gap.evaluate((element) => element.closest('button') === null)).toBe(true);
+    await expect(gap.getByRole('button')).toHaveCount(0);
+  });
+}

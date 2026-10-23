@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { Fragment, useEffect, useRef } from 'react';
 import type { Action, ChangeProps, EditorModel, EvaluationModel, FieldModel, HelpProps, OverviewModel, PlanFieldId, RowModel, SectionModel } from './types';
 import { Button, ChoiceGroup, Disclosure, FormField, HelpLink, HeroValue, KeyValueRow, MetricValue, Notice, ProgressBar, SectionHeader } from './primitives';
 import s from './ui.module.css';
@@ -40,10 +40,10 @@ export function OverviewView({ model, initialField, initialTarget, onInitialExpe
   if (model.empty) return <div className={s.content}><h2 className={s.title}>离自由，还有多远？</h2><FormField field={initialField} onChange={(_id, value) => onInitialExpense(value)} /><HeroValue label="按当前生活预算所需资本" value={initialTarget} unit="万元" /><SectionHeader title="年支出 / 4%"><HelpLink onClick={() => onHelp('withdrawal-rate')}>4% 法则 ↗</HelpLink></SectionHeader><p className={s.caption}>先按当前生活预算估算，提取率和目标口径均可调整。</p><hr className={s.divider} /><h3 className={s.sectionTitle}>再补充一点信息，看看还需要多久</h3><Button onClick={() => onEditPlan()}>填写我的计划</Button><p className={s.caption}>数据保存在当前浏览器，无需注册。</p><Notice><HeroValue label="预计还需" value="—" /><p className={s.caption}>填写当前资产、收入与长期假设后预测时间。</p></Notice></div>;
   return <div className={s.content}>
     <SectionHeader title={<button className={s.sectionTitle} onClick={() => model.noGoals ? onAddGoal() : onEditGoal()}>{model.title}</button>}><HelpLink onClick={() => onHelp(model.titleHelp)}>{model.titleHelp === 'withdrawal-rate' ? '4% 法则 ↗' : '口径说明 ↗'}</HelpLink></SectionHeader>
-    <div className={s.coreMetrics} aria-label="计划核心指标">{model.coreMetrics.map((metric) => <button key={metric.fieldId} type="button" className={`${s.coreMetric} ${metric.fieldId === 'assets' ? s.assetMetric : ''}`} onClick={() => onEditPlan(metric.fieldId)}><span className={s.caption}>{metric.label}</span><span className={s.metricNumber}><strong>{metric.value}</strong><span className={s.caption}>{metric.unit}</span></span></button>)}</div>
+    <div className={s.coreMetrics} aria-label="计划核心指标">{model.coreMetrics.map((metric) => <Fragment key={metric.fieldId}><button type="button" className={`${s.coreMetric} ${metric.fieldId === 'assets' ? s.assetMetric : ''}`} onClick={() => onEditPlan(metric.fieldId)}><span className={s.caption}>{metric.label}</span><span className={s.metricNumber}><strong>{metric.value}</strong><span className={s.caption}>{metric.unit}</span></span></button>{metric.fieldId === 'assets' && <div className={`${s.coreMetric} ${s.gapMetric}`} data-goal-gap><span className={s.caption}>{model.gap.label}</span><span className={s.metricNumber}><strong className={s[model.gap.tone]}>{model.gap.value}</strong><span className={s.caption}>{model.gap.unit}</span></span></div>}</Fragment>)}</div>
     <section className={s.forecastGrid} aria-label="达成预测"><div className={s.group}><p className={s.heroLabel}>{model.projected.title}</p><p className={s.subvalue}>{model.projected.value}</p><p className={s.caption}>{model.projected.note}</p></div><HeroValue {...model.hero} /></section>
     <div className={s.progressGroup}><KeyValueRow label={model.target} value={model.coverage} />{model.progress !== null && <ProgressBar value={model.progress} label="主目标完成进度" />}</div>
-    <div className={s.balances}>{model.balances.map((balance) => <MetricValue key={balance.label} {...balance} />)}</div>
+    {model.balances.length > 0 && <div className={s.balances}>{model.balances.map((balance) => <MetricValue key={balance.label} {...balance} />)}</div>}
     <SectionHeader title="里程碑"><HelpLink onClick={onAddGoal}>＋ 添加</HelpLink></SectionHeader>
     {model.milestones.map((milestone) => <button key={milestone.id} className={s.milestone} onClick={() => onEditGoal(milestone.id)}><span className={s.milestoneHead}><strong>{milestone.title}</strong><span>{milestone.value}</span></span><span className={s.caption}>{milestone.rule}</span><span className={s.divider} /></button>)}
     {model.noGoals && <Button onClick={onAddGoal}>添加第一个目标</Button>}
@@ -68,7 +68,7 @@ export function EditorSections({ sections, onChange, onHelp, onStep }: SectionPr
       {section.note && <p className={s.caption}>{section.note}</p>}{section.destination && onStep && <button type="button" className={s.assumptions} onClick={() => onStep(section.destination!)}><KeyValueRow label={section.title ?? '高级设置'} value={`${section.summary ?? ''} ›`} /></button>}
       {section.help && <HelpLink onClick={() => onHelp(section.help!)}>说明 ↗</HelpLink>}</>;
     return section.collapsed ? <Disclosure key={section.id} title={section.title ?? '高级设置'}>{content}</Disclosure>
-      : <section key={section.id} aria-label={section.title} className={section.layout ? s.compactSection : section.fields.some((field) => field.slider) ? s.coreControls : s.stack}>{section.title && !section.destination && section.layout !== 'growth' && (section.layout === 'compact' ? <h3 className={s.compactTitle}>{section.title}</h3> : <SectionHeader title={section.title} />)}{content}</section>;
+      : <section key={section.id} aria-label={section.title} className={section.layout ? s.compactSection : section.fields.some((field) => field.slider) ? s.coreControls : s.stack}>{section.title && !section.destination && section.layout !== 'growth' && !(section.layout === 'compact' && section.fields[0]?.kind === 'select') && (section.layout === 'compact' ? <h3 className={s.compactTitle}>{section.title}</h3> : <SectionHeader title={section.title} />)}{content}</section>;
   })}</>;
 }
 

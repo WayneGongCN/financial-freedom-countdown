@@ -62,7 +62,7 @@ describe('集中调整计划核心参数', () => {
     expect(model.sections.every((section) => !section.destination && !section.collapsed)).toBe(true);
     expect(model.sections.filter((section) => section.layout === 'growth').map((section) => section.id)).toEqual(['income-growth', 'expense-growth']);
     expect(model.sections.filter((section) => section.layout === 'compact').map((section) => section.id)).toEqual(['external', 'budget', 'horizon', 'amount-basis']);
-    expect(model.sections.filter((section) => section.help === 'growth-rules').map((section) => section.id)).toEqual(['expense-growth']);
+    expect(model.sections.every((section) => section.help === undefined)).toBe(true);
     expect(new Set(fields.map((field) => field.label)).size).toBe(fields.length);
     expect(fields.filter((field) => field.id.endsWith('Growth') || field.id.endsWith('Rate') && field.id !== 'returnRate').map((field) => field.label)).toEqual([
       '收入增长方式', '收入年增长率', '支出增长方式', '支出年增长率', '其他被动收入增长方式', '其他被动收入年增长率', '自由后预算增长方式', '自由后预算年增长率',
@@ -106,7 +106,7 @@ describe('集中调整计划核心参数', () => {
     expect(field).toMatchObject({ id: 'external', label: '其他年被动收入（税费后）', unit: '元/年' });
     expect(field.hint).toContain('当前持续收取的资产池外税后收入');
     expect(field.hint).toContain('资产池内投资收益已计入总收益，不重复填写');
-    expect(section.help).toBe('passive-income');
+    expect(section.help).toBeUndefined();
     expect(section.note).toContain('每月按当月年额 ÷ 12 计入结余和资产');
     expect(section.note).toContain('并纳入总被动收入');
     expect(section.note).toContain('资本目标仅在勾选抵扣其他被动收入时减少门槛');
@@ -141,7 +141,10 @@ describe('集中调整计划核心参数', () => {
   it('预算来源切换在同页保留自定义草稿，引用当前支出同步金额与增长', () => {
     const { result } = renderHook(() => ({ editor: usePlanEditor(), api: useFinanceDocument() }), { wrapper: wrapperFor() });
     act(() => result.current.editor.begin());
-    expect(result.current.editor.model!.sections.find((section) => section.id === 'budget')!.fields.map((field) => field.id)).toEqual(['budgetKind']);
+    const budget = result.current.editor.model!.sections.find((section) => section.id === 'budget')!;
+    expect(budget.fields.map((field) => field.id)).toEqual(['budgetKind']);
+    expect(budget.fields[0]).toMatchObject({ label: '自由后预算来源', kind: 'select', value: 'current',
+      options: [{ value: 'current', label: '引用当前支出' }, { value: 'custom', label: '单独设置' }] });
     act(() => {
       result.current.editor.change('budgetKind', 'custom'); result.current.editor.change('budget', '96000');
       result.current.editor.change('budgetGrowth', 'custom'); result.current.editor.change('budgetRate', '2');

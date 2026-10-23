@@ -26,6 +26,7 @@ export interface OverviewModel {
   empty: boolean; noGoals: boolean; basis: string; basisLabel: string; title: string; titleHelp: string;
   hero: HeroModel; target: string; coverage: string; progress: number | null;
   coreMetrics: { fieldId: PlanFieldId; label: string; value: string; unit: string }[];
+  gap: { label: string; value: string; unit: string; tone: Tone };
   balances: { label: string; value: string; unit: string; tone: Tone }[];
   projected: { title: string; value: string; note: string };
   milestones: MilestoneModel[];
