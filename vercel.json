@@ -1,0 +1,11 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": "vite",
+  "installCommand": "npm exec --yes --package=pnpm@11.10.0 -- pnpm install --frozen-lockfile",
+  "buildCommand": "pnpm typecheck:web && pnpm build:web",
+  "outputDirectory": "web-dist",
+  "rewrites": [
+    { "source": "/evaluate", "destination": "/index.html" },
+    { "source": "/guide", "destination": "/index.html" }
+  ]
+}

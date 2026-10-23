@@ -1,0 +1,82 @@
+import { createContext, useCallback, useContext, useEffect, useMemo, useReducer, type ReactNode } from 'react';
+import { createDocument, documentSchema, exportDocument, importDocument, loadDocument, saveDocument, type FinanceDocument, type StorageAdapter } from '../../src/index';
+
+interface DocumentState { document: FinanceDocument; error: string | null; blocked: boolean; revision: number; savedRevision: number }
+type Event = { type: 'commit'; document: FinanceDocument; recover?: boolean } | { type: 'saved'; revision: number } | { type: 'failed'; error: string } | { type: 'retry' };
+export interface DocumentApi extends DocumentState {
+  /**
+   * 原子提交经过完整校验的文档，校验失败返回中文提示且不修改正式方案，喵~
+   * @param document 新的完整文档，喵~
+   */
+  commit: (document: FinanceDocument) => string | null;
+  /** 重试保存当前内存中的正式方案，喵~ */
+  retrySave: () => void;
+  /**
+   * 读取并替换导入的文档，失败保留原始方案并返回提示，喵~
+   * @param json 用户明确选择导入的备份，喵~
+   */
+  importBackup: (json: string) => string | null;
+  /** 导出当前内存中的正式方案，喵~ */
+  exportBackup: () => string;
+  /** 用户选择重新开始后替换损坏数据，喵~ */
+  reset: () => void;
+}
+const Context = createContext<DocumentApi | null>(null);
+
+/** 用本地年月创建新文档，已有方案的基准月份不会被更新，喵~ */
+function currentMonth(): string {
+  const date = new Date();
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+}
+
+/** 初始化读取失败时阻止自动写入，保护用户原始存档，喵~ */
+function initialize(storage: StorageAdapter): DocumentState {
+  try { return { document: loadDocument(storage) ?? createDocument(currentMonth()), error: null, blocked: false, revision: 0, savedRevision: 0 }; }
+  catch { return { document: createDocument(currentMonth()), error: '无法读取已保存的方案。原始数据已保留，可导入备份或选择重新开始。', blocked: true, revision: 0, savedRevision: 0 }; }
+}
+
+/** 集中管理文档提交和保存状态，喵~ */
+function reducer(state: DocumentState, event: Event): DocumentState {
+  if (event.type === 'commit') {
+    const document = { ...event.document };
+    for (const key of ['plan', 'goals', 'project'] as const) {
+      if (JSON.stringify(document[key]) === JSON.stringify(state.document[key])) Object.assign(document, { [key]: state.document[key] });
+    }
+    return { ...state, document, revision: state.revision + 1, blocked: event.recover ? false : state.blocked, error: event.recover ? null : state.error };
+  }
+  if (event.type === 'saved') return { ...state, savedRevision: event.revision, error: null };
+  if (event.type === 'failed') return { ...state, error: event.error };
+  return { ...state, revision: state.revision + 1 };
+}
+
+/** 持有唯一正式文档和存储副作用，不保存派生财务结果，喵~ */
+export function FinanceDocumentProvider({ children, storage }: { children: ReactNode; storage: StorageAdapter }) {
+  const [state, dispatch] = useReducer(reducer, storage, initialize);
+  /** 仅在有效提交后保存，损坏存档不会被空文档自动覆盖，喵~ */
+  useEffect(() => {
+    if (state.blocked || state.revision === state.savedRevision) return;
+    try { saveDocument(storage, state.document); dispatch({ type: 'saved', revision: state.revision }); }
+    catch { dispatch({ type: 'failed', error: '保存失败，修改仍保留在本次会话中。请重试或导出备份。' }); }
+  }, [storage, state.blocked, state.document, state.revision, state.savedRevision]);
+  const commit = useCallback((document: FinanceDocument) => {
+    const parsed = documentSchema.safeParse(document);
+    if (!parsed.success) return '方案不完整或目标数量超过上限，请检查输入。';
+    dispatch({ type: 'commit', document: parsed.data }); return null;
+  }, []);
+  const importBackup = useCallback((json: string) => {
+    try { dispatch({ type: 'commit', document: importDocument(json), recover: true }); return null; }
+    catch { return '备份格式、模型版本或数据内容不受支持，原方案未改变。'; }
+  }, []);
+  const value = useMemo<DocumentApi>(() => ({ ...state, commit, importBackup,
+    retrySave: () => dispatch({ type: 'retry' }), exportBackup: () => exportDocument(state.document),
+    reset: () => dispatch({ type: 'commit', document: createDocument(currentMonth()), recover: true }),
+  }), [state, commit, importBackup]);
+  return <Context.Provider value={value}>{children}</Context.Provider>;
+}
+
+/** 供容器和业务 Hook 读取统一正式文档，喵~ */
+export function useFinanceDocument(): DocumentApi {
+  const value = useContext(Context);
+  if (!value) throw new Error('必须在 FinanceDocumentProvider 内使用');
+  return value;
+}
