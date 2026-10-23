@@ -74,6 +74,8 @@ pnpm dlx vercel@65.1.0 --prod
 
 部署后检查首页、直接访问 `/evaluate`、`/guide` 与刷新恢复。每个域名有独立的浏览器存储，本地预览数据不会自动传到线上；需要时使用应用内 JSON 导入导出。
 
+设置 `PLAYWRIGHT_BASE_URL` 后，`pnpm test:e2e` 会直接验证指定部署，不启动本地开发服务器。测试使用隔离浏览器上下文和合成数据，不读取或修改用户浏览器里的计划。
+
 ## 设计与验收范围
 
 视觉依据为 [Figma V2](https://www.figma.com/design/Sp9k9k4MdOuPoK2H2GkwqQ?node-id=17-187)。总览使用已获取的高保真上下文；其余页面复用同一设计 token 和已读取结构实现交互。Figma 连接器额度不足，尚未完成其余所有画板的逐屏高保真核对，不将功能测试视作这部分视觉验收。
