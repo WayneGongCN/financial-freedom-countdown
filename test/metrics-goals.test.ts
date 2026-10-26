@@ -80,7 +80,7 @@ describe('指标组成与统计币值', () => {
   });
   it('投资亏损可以使总被动收入为负，不把亏损截成零', () => {
     const context = createMetricContext(plan({ investmentReturn: { annualRate: -0.1 },
-      activeIncome: { amount: 0, growth: { kind: 'fixed' } }, currentExpenses: { amount: 0, growth: { kind: 'fixed' } } }));
+      activeIncome: [{ amount: 0, growth: { kind: 'fixed' }, durationMonths: null }], currentExpenses: { amount: 0, growth: { kind: 'fixed' } } }));
     expect(availableValue(evaluateMetric(context, metricPreset('passive-total')))!.value).toBeCloseTo(-60000, 6);
     expect(evaluateMetric(context, { kind: 'flow', basis: 'nominal', aggregation: 'annualized', components: ['investment-total', 'external-income'] })).toMatchObject({ value: -60000 });
   });
@@ -126,7 +126,7 @@ describe('指标组成与统计币值', () => {
 
 describe('资本目标与里程碑', () => {
   it.each([[0, 0, 117], [0.03, 0, 185], [0.03, 0.03, 145]])('通胀 %s、工资增长 %s 在第 %s 月达成', (inflation, incomeGrowth, expected) => {
-    const p = plan({ inflationRate: inflation, activeIncome: { amount: 240000, growth: { kind: 'custom', annualRate: incomeGrowth } } });
+    const p = plan({ inflationRate: inflation, activeIncome: [{ amount: 240000, growth: { kind: 'custom', annualRate: incomeGrowth }, durationMonths: null }] });
     const result = calculateMilestones(p, [freedomGoal()]);
     expect(result.goals[0]!.firstMonth).toBe(expected);
   });
@@ -188,7 +188,7 @@ describe('资本目标与里程碑', () => {
     expect(evaluateGoal(context, goal).status).toBe('invalid');
   });
   it('非正主动储蓄不是自动达成', () => {
-    const context = createMetricContext(plan({ activeIncome: { amount: 120000, growth: { kind: 'fixed' } }, investmentReturn: { annualRate: 0 } }));
+    const context = createMetricContext(plan({ activeIncome: [{ amount: 120000, growth: { kind: 'fixed' }, durationMonths: null }], investmentReturn: { annualRate: 0 } }));
     expect(evaluateGoal(context, createDefaultGoals()[0]!).status).toBe('not-applicable');
     expect(forecastGoal(context, createDefaultGoals()[0]!).status).toBe('not-applicable');
   });

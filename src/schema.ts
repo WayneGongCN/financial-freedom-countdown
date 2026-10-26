@@ -15,6 +15,14 @@ export const growthSchema = z.discriminatedUnion('kind', [
   z.strictObject({ kind: z.literal('custom'), annualRate: rate }),
 ]);
 export const annualFlowSchema = z.strictObject({ amount, growth: growthSchema });
+export const incomeStageSchema = annualFlowSchema.extend({
+  durationMonths: z.number().int().min(1).max(MAX_MONTHS).nullable(),
+});
+export const incomeScheduleSchema = z.array(incomeStageSchema).min(1).superRefine((stages, ctx) => {
+  stages.slice(0, -1).forEach((stage, index) => {
+    if (stage.durationMonths === null) ctx.addIssue({ code: 'custom', path: [index, 'durationMonths'], message: '只有最后一个收入阶段可以不限期' });
+  });
+});
 export const returnSchema = z.strictObject({
   annualRate: rate,
 });
@@ -25,7 +33,7 @@ export const planSchema = z.strictObject({
   initialAssets: amount.nullable(),
   inflationRate: rate.nullable(),
   investmentReturn: returnSchema.nullable(),
-  activeIncome: annualFlowSchema.nullable(),
+  activeIncome: incomeScheduleSchema.nullable(),
   currentExpenses: annualFlowSchema.nullable(),
   externalIncome: annualFlowSchema.nullable(),
   retirementBudget: z.discriminatedUnion('kind', [
@@ -128,6 +136,7 @@ export const documentSchema = z.strictObject({
 
 export type Growth = z.infer<typeof growthSchema>;
 export type AnnualFlow = z.infer<typeof annualFlowSchema>;
+export type IncomeStage = z.infer<typeof incomeStageSchema>;
 export type ReturnAssumption = z.infer<typeof returnSchema>;
 export type Plan = z.infer<typeof planSchema>;
 export type CashFlow = z.infer<typeof cashFlowSchema>;

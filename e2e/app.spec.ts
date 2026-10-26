@@ -5,7 +5,7 @@ import { createDocument, DEFAULT_STORAGE_KEY } from '../src/index';
 function exampleDocument() {
   const document = createDocument('2026-10');
   document.plan = { ...document.plan, initialAssets: 600000, inflationRate: 0.03, investmentReturn: { annualRate: 0.08 },
-    activeIncome: { amount: 240000, growth: { kind: 'fixed' } }, currentExpenses: { amount: 120000, growth: { kind: 'inflation' } } };
+    activeIncome: [{ amount: 240000, growth: { kind: 'fixed' }, durationMonths: null }], currentExpenses: { amount: 120000, growth: { kind: 'inflation' } } };
   document.goals[2]!.name = '资产覆盖生活支出';
   return document;
 }
@@ -431,7 +431,7 @@ test('资产置于编辑首位，滑条步进与精确超范围金额统一保�
 test('紧凑增长配置始终展开且无说明入口，自定义增长校验并保存恢复', async ({ page }) => {
   await seed(page); await page.setViewportSize({ width: 390, height: 844 }); await page.goto('/?panel=plan');
   const dialog = page.getByRole('dialog', { name: '我的计划', exact: true });
-  const incomeGrowth = dialog.getByRole('region', { name: '收入增长', exact: true });
+  const incomeGrowth = dialog.getByRole('region', { name: '当前阶段', exact: true });
   await expect(dialog.getByRole('button', { name: /说明.*↗/ })).toHaveCount(0);
   for (const label of ['收入增长方式', '支出增长方式']) {
     const select = dialog.getByLabel(label, { exact: true });
@@ -455,7 +455,7 @@ test('紧凑增长配置始终展开且无说明入口，自定义增长校验�
   await expect(dialog.getByLabel('支出增长方式', { exact: true })).toHaveValue('custom');
   await expect(expenseRate).toHaveValue('2.5');
   const saved = await page.evaluate((key) => JSON.parse(localStorage.getItem(key)!), DEFAULT_STORAGE_KEY);
-  expect(saved.plan.activeIncome.growth).toEqual({ kind: 'custom', annualRate: 0.045 });
+  expect(saved.plan.activeIncome[0].growth).toEqual({ kind: 'custom', annualRate: 0.045 });
   expect(saved.plan.currentExpenses.growth).toEqual({ kind: 'custom', annualRate: 0.025 });
 });
 
@@ -519,14 +519,14 @@ test('320px 短视口保持总览位置，表单滚动与增长换行不遮挡�
     const selectBox = (await select.boundingBox())!;
     const rateBox = (await rate.boundingBox())!;
     expect(rateBox.y).toBeGreaterThanOrEqual(selectBox.y + selectBox.height);
-    const region = dialog.getByRole('region', { name: `${name}增长`, exact: true });
+    const region = dialog.getByRole('region', { name: name === '收入' ? '当前阶段' : `${name}增长`, exact: true });
     expect(await region.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
     await expect(save).toBeInViewport({ ratio: 1 });
   }
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   await save.click();
   const saved = await page.evaluate((key) => JSON.parse(localStorage.getItem(key)!), DEFAULT_STORAGE_KEY);
-  expect(saved.plan.activeIncome.growth).toEqual({ kind: 'custom', annualRate: 0.045 });
+  expect(saved.plan.activeIncome[0].growth).toEqual({ kind: 'custom', annualRate: 0.045 });
   expect(saved.plan.currentExpenses.growth).toEqual({ kind: 'custom', annualRate: 0.025 });
 });
 

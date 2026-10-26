@@ -13,7 +13,6 @@ export function FinanceApp() {
   return <AppLayout scrollRef={nav.scrollRef} header={<><h1>{seoPages[seoPath(nav.location.pathname) ?? '/'].heading}</h1><HelpLink href={nav.guide ? undefined : '/guide'} onClick={nav.guide ? nav.returnFromGuide : () => nav.help()}>{nav.guide ? '‹ 返回' : '口径说明 ↗'}</HelpLink></>}
     navigation={nav.guide ? null : <BottomNav active={nav.location.pathname} onSelect={nav.go} />}>
     {api.error && <div style={{ padding: '12px 24px' }}><StorageNotice message={api.error} blocked={api.blocked} onRetry={api.retrySave} onReset={reset} /></div>}
-    {api.notice && <p className={s.caption} role="status" style={{ padding: '12px 24px' }}>{api.notice}</p>}
     {nav.guide ? <GuideView topics={guideTopics} active={nav.anchor} onHelp={nav.help} /> : nav.location.pathname === '/evaluate'
       ? <EvaluationView model={results.evaluation} sections={project.sections} timingRows={project.timingRows} canAdd={project.canAdd} onChange={project.change} onHelp={nav.help} onBasisChange={changeBasis}
         onAddExpense={() => project.add('expense')} onAddIncome={() => project.add('active-income')} onRemove={project.remove} onClear={project.clear} onEditPlan={openPlan} />
@@ -22,7 +21,7 @@ export function FinanceApp() {
     <BottomSheet open={!nav.guide && nav.panel === 'plan' && !!plan.model} title={plan.model?.title ?? '我的计划'} onClose={closeEditor}
       summary={plan.model && <EditorPreview model={plan.model} />}
       footer={<Button onClick={savePlan} disabled={!plan.model?.canSave}>{plan.model?.saveLabel ?? '完成并保存'}</Button>}>
-      {plan.model && <div className={s.stack}><PlanEditorView model={plan.model} targetField={plan.targetField} active={!nav.guide && nav.panel === 'plan'} onChange={plan.change} onHelp={nav.help} />
+      {plan.model && <div className={s.stack}><PlanEditorView model={plan.model} targetField={plan.targetField} active={!nav.guide && nav.panel === 'plan'} onChange={plan.change} onHelp={nav.help} incomeSchedule={plan.incomeSchedule ? { model: plan.incomeSchedule, onChange: plan.change, onAdd: plan.addIncomeStage, onRemove: plan.removeIncomeStage } : undefined} />
         <Disclosure title="本地数据与备份"><p className={s.caption}>只保存于当前浏览器。导出文件包含你的财务数据，请妥善保管。</p><Button secondary onClick={transfer.download}>导出正式方案</Button><label className={s.caption}>导入 JSON 备份<input className={s.file} type="file" accept="application/json,.json" onChange={(event) => { void importFile(event.target.files?.[0]); event.target.value = ''; }} /></label>{transfer.message && <p className={s.caption} role="status">{transfer.message}</p>}</Disclosure>
       </div>}
     </BottomSheet>

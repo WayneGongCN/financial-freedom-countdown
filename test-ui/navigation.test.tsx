@@ -68,11 +68,11 @@ describe('完整计划路由与草稿生命周期', () => {
     act(() => result.current.workspace.plan.change('income', '360000'));
     expect(result.current.workspace.nav.location.search).toBe('?panel=plan');
     expect(result.current.workspace.plan.draft?.income).toBe('360000');
-    expect(result.current.workspace.api.document.plan.activeIncome?.amount).toBe(240000);
+    expect(result.current.workspace.api.document.plan.activeIncome?.[0]?.amount).toBe(240000);
     act(() => result.current.navigate(-1));
     expect(result.current.workspace.nav.panel).toBeNull();
     expect(result.current.workspace.plan.draft).toBeNull();
-    expect(result.current.workspace.api.document.plan.activeIncome?.amount).toBe(240000);
+    expect(result.current.workspace.api.document.plan.activeIncome?.[0]?.amount).toBe(240000);
     act(() => result.current.navigate(1));
     expect(result.current.workspace.plan.draft?.income).toBe('240000');
     act(() => result.current.workspace.closeEditor());
@@ -94,7 +94,7 @@ describe('完整计划路由与草稿生命周期', () => {
     act(() => result.current.workspace.closeEditor());
     expect(result.current.workspace.nav.location).toMatchObject({ pathname: '/evaluate', search: '' });
     expect(result.current.workspace.plan.draft).toBeNull();
-    expect(result.current.workspace.api.document.plan.activeIncome?.amount).toBe(240000);
+    expect(result.current.workspace.api.document.plan.activeIncome?.[0]?.amount).toBe(240000);
   });
 
   it('计划直接保存整份草稿并关闭，不产生任何确认子步骤', async () => {
@@ -105,7 +105,7 @@ describe('完整计划路由与草稿生命周期', () => {
     act(() => result.current.savePlan());
     expect(result.current.nav.panel).toBeNull();
     expect(result.current.plan.draft).toBeNull();
-    expect(result.current.api.document.plan).toMatchObject({ activeIncome: { amount: 360000 }, investmentReturn: { annualRate: 0.1 } });
+    expect(result.current.api.document.plan).toMatchObject({ activeIncome: [{ amount: 360000, durationMonths: null }], investmentReturn: { annualRate: 0.1 } });
     await waitFor(() => expect(result.current.api.savedRevision).toBe(result.current.api.revision));
   });
 

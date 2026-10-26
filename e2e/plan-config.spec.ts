@@ -5,7 +5,7 @@ import { createDocument, DEFAULT_STORAGE_KEY } from '../src/index';
 async function seed(page: Page) {
   const document = createDocument('2026-10');
   document.plan = { ...document.plan, initialAssets: 600000, inflationRate: 0.03,
-    investmentReturn: { annualRate: 0.08 }, activeIncome: { amount: 240000, growth: { kind: 'fixed' } },
+    investmentReturn: { annualRate: 0.08 }, activeIncome: [{ amount: 240000, growth: { kind: 'fixed' }, durationMonths: null }],
     currentExpenses: { amount: 120000, growth: { kind: 'inflation' } } };
   await page.addInitScript(({ key, value }) => {
     if (!localStorage.getItem(key)) localStorage.setItem(key, value);
@@ -49,7 +49,7 @@ test('其余计划配置同页修改，实时预测固定且只在最终保存�
   await dialog.getByRole('button', { name: '完成并保存', exact: true }).click();
   await page.reload();
   const saved = await page.evaluate((key) => JSON.parse(localStorage.getItem(key)!).plan, DEFAULT_STORAGE_KEY);
-  expect(saved.activeIncome.growth).toEqual({ kind: 'custom', annualRate: 0.05 });
+  expect(saved.activeIncome[0].growth).toEqual({ kind: 'custom', annualRate: 0.05 });
   expect(saved.currentExpenses.growth).toEqual({ kind: 'custom', annualRate: 0.02 });
   expect(saved.externalIncome).toEqual({ amount: 12000, growth: { kind: 'custom', annualRate: 0.01 } });
   expect(saved.retirementBudget).toEqual({ kind: 'custom', flow: { amount: 180000, growth: { kind: 'inflation' } } });

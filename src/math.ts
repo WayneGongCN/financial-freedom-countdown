@@ -54,6 +54,19 @@ export function annualValue(flow: AnnualFlow | null, plan: Plan, month: number, 
   return growAmount(input.amount, input.growth, plan, month);
 }
 
+/** 按阶段起点计算主动年收入，第零月仅提供当前水平，有限末段结束后归零，喵~ */
+export function activeIncomeAnnualAt(plan: Plan, month: number): number {
+  const stages = required(plan.activeIncome, 'activeIncome');
+  let start = 0;
+  for (const stage of stages) {
+    if (stage.durationMonths === null || month <= start + stage.durationMonths) {
+      return growAmount(stage.amount, stage.growth, plan, month - start);
+    }
+    start += stage.durationMonths;
+  }
+  return 0;
+}
+
 /** 在同一时点转换显示币值，统计算法保持不变，喵~ */
 export function convertBasis(value: number, from: 'nominal' | 'real', to: 'nominal' | 'real', plan: Plan, month: number): number {
   if (from === to) return value;

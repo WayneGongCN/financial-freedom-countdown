@@ -6,7 +6,7 @@ async function seed(page: Page) {
   const document = createDocument('2026-10');
   document.plan = { ...document.plan, initialAssets: 600000, inflationRate: 0.03,
     investmentReturn: { annualRate: 0.08 },
-    activeIncome: { amount: 240000, growth: { kind: 'fixed' } },
+    activeIncome: [{ amount: 240000, growth: { kind: 'fixed' }, durationMonths: null }],
     currentExpenses: { amount: 120000, growth: { kind: 'inflation' } } };
   await page.addInitScript(({ key, value }) => {
     if (!localStorage.getItem(key)) localStorage.setItem(key, value);

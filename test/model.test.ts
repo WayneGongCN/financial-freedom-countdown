@@ -119,7 +119,7 @@ describe('准备金与自由后预算', () => {
 
 describe('月度资产推演', () => {
   it('期初投资、月末收支，总收益只计入资产一次', () => {
-    const p = plan({ initialAssets: 1000000, activeIncome: { amount: 0, growth: { kind: 'fixed' } },
+    const p = plan({ initialAssets: 1000000, activeIncome: [{ amount: 0, growth: { kind: 'fixed' }, durationMonths: null }],
       currentExpenses: { amount: 0, growth: { kind: 'fixed' } } });
     const result = simulatePlan(p);
     expect(result.rows[12]!.assets).toBeCloseTo(1080000, 6);
@@ -129,7 +129,7 @@ describe('月度资产推演', () => {
   });
   it('总投资净损益允许为负，亏损按月减少资产', () => {
     const result = simulatePlan(plan({ initialAssets: 1000000, investmentReturn: { annualRate: -0.1 },
-      activeIncome: { amount: 0, growth: { kind: 'fixed' } }, currentExpenses: { amount: 0, growth: { kind: 'fixed' } } }));
+      activeIncome: [{ amount: 0, growth: { kind: 'fixed' }, durationMonths: null }], currentExpenses: { amount: 0, growth: { kind: 'fixed' } } }));
     expect(result.status).toBe('complete');
     expect(result.rows[1]!.investmentTotal).toBeLessThan(0);
     expect(result.rows[12]!.assets).toBeCloseTo(900000, 6);
@@ -137,20 +137,20 @@ describe('月度资产推演', () => {
   });
   it('工资不增长与跟随通胀必须产生不同结余', () => {
     const flat = simulatePlan(plan({ inflationRate: 0.03 }));
-    const linked = simulatePlan(plan({ inflationRate: 0.03, activeIncome: { amount: 240000, growth: { kind: 'inflation' } } }));
+    const linked = simulatePlan(plan({ inflationRate: 0.03, activeIncome: [{ amount: 240000, growth: { kind: 'inflation' }, durationMonths: null }] }));
     expect(flat.rows[120]!.activeIncome).toBe(20000);
     expect(linked.rows[120]!.activeIncome).toBeCloseTo(20000 * 1.03 ** 10, 6);
     expect(flat.rows[120]!.netCashFlow).toBeLessThan(linked.rows[120]!.netCashFlow);
   });
   it('收益等于通胀时无投入资产的购买力保持不变', () => {
     const p = plan({ inflationRate: 0.03, investmentReturn: { annualRate: 0.03 },
-      activeIncome: { amount: 0, growth: { kind: 'fixed' } }, currentExpenses: { amount: 0, growth: { kind: 'fixed' } } });
+      activeIncome: [{ amount: 0, growth: { kind: 'fixed' }, durationMonths: null }], currentExpenses: { amount: 0, growth: { kind: 'fixed' } } });
     const result = simulatePlan(p);
     expect(result.rows[120]!.assets / result.rows[120]!.priceIndex!).toBeCloseTo(600000, 6);
   });
   it('收益低于通胀时名义资产上涨但实际资产下降', () => {
     const result = simulatePlan(plan({ inflationRate: 0.03, investmentReturn: { annualRate: 0.02 },
-      activeIncome: { amount: 0, growth: { kind: 'fixed' } }, currentExpenses: { amount: 0, growth: { kind: 'fixed' } } }));
+      activeIncome: [{ amount: 0, growth: { kind: 'fixed' }, durationMonths: null }], currentExpenses: { amount: 0, growth: { kind: 'fixed' } } }));
     expect(result.rows[120]!.assets).toBeGreaterThan(600000);
     expect(result.rows[120]!.assets / result.rows[120]!.priceIndex!).toBeLessThan(600000);
   });
@@ -170,7 +170,7 @@ describe('月度资产推演', () => {
   });
   it('资产池之外的被动收入在月末追加，不再次计入投资总收益', () => {
     const result = simulatePlan(plan({ initialAssets: 1000000,
-      activeIncome: { amount: 0, growth: { kind: 'fixed' } }, currentExpenses: { amount: 0, growth: { kind: 'fixed' } },
+      activeIncome: [{ amount: 0, growth: { kind: 'fixed' }, durationMonths: null }], currentExpenses: { amount: 0, growth: { kind: 'fixed' } },
       externalIncome: { amount: 12000, growth: { kind: 'fixed' } } }));
     const monthlyReturn = 1.08 ** (1 / 12) - 1;
     expect(result.status).toBe('complete');
@@ -188,7 +188,7 @@ describe('月度资产推演', () => {
   });
   it('当前及后续资金不足均停止，不默认借款', () => {
     expect(simulatePlan(plan({ initialAssets: 1 }), project(flow())).issue?.month).toBe(0);
-    const result = simulatePlan(plan({ initialAssets: 1, activeIncome: { amount: 0, growth: { kind: 'fixed' } } }));
+    const result = simulatePlan(plan({ initialAssets: 1, activeIncome: [{ amount: 0, growth: { kind: 'fixed' }, durationMonths: null }] }));
     expect(result.status).toBe('insolvent');
     expect(result.issue?.month).toBe(1);
     expect(result.rows).toHaveLength(2);

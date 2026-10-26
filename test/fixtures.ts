@@ -4,7 +4,7 @@ import { createDefaultGoals, createPlan, type CashFlow, type Goal, type Plan, ty
 export function plan(overrides: Partial<Plan> = {}): Plan {
   return createPlan('2026-10', {
     initialAssets: 600000, inflationRate: 0, investmentReturn: { annualRate: 0.08 },
-    activeIncome: { amount: 240000, growth: { kind: 'fixed' } },
+    activeIncome: [{ amount: 240000, growth: { kind: 'fixed' }, durationMonths: null }],
     currentExpenses: { amount: 120000, growth: { kind: 'inflation' } }, ...overrides,
   });
 }
