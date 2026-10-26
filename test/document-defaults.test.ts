@@ -2,19 +2,20 @@ import { describe, expect, it } from 'vitest';
 import { createDocument, createPlan, METRIC_PRESET_NAMES, metricPreset, returnSchema } from '../src/index.js';
 
 describe('新方案默认假设', () => {
-  it('新文档明确不计通胀并使用名义金额', () => {
+  it('新文档预填 2% 通胀与 5% 年化总收益并使用名义金额', () => {
     const document = createDocument('2026-10');
     expect(document.schemaVersion).toBe(3);
     expect(document.modelVersion).toBe('3.0.0');
-    expect(document.plan.inflationRate).toBe(0);
+    expect(document.plan.inflationRate).toBe(0.02);
     expect(document.preferences.displayBasis).toBe('nominal');
-    expect(document.plan.investmentReturn).toBeNull();
+    expect(document.plan.investmentReturn).toEqual({ annualRate: 0.05 });
     expect(document.plan.activeIncome).toBeNull();
     expect(document.plan.currentExpenses).toBeNull();
   });
 
-  it('直接创建核心计划时继续保留未填写通胀的状态', () => {
+  it('直接创建核心计划时继续保留未填写通胀与收益的状态', () => {
     expect(createPlan('2026-10').inflationRate).toBeNull();
+    expect(createPlan('2026-10').investmentReturn).toBeNull();
   });
 
   it('收益假设仅包含未扣通胀的年化总收益率，不接受输入口径', () => {
