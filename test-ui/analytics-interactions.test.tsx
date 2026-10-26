@@ -1,0 +1,83 @@
+import { act, renderHook } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import type { ReactNode } from 'react';
+import { trackEvent } from '../app/analytics';
+import { usePlanEditor } from '../app/hooks/usePlanEditor';
+import { useFinanceWorkspace } from '../app/hooks/useFinanceWorkspace';
+import { memoryStorage, wrapperFor } from './fixtures';
+
+vi.mock('../app/analytics', () => ({ trackEvent: vi.fn(), trackPage: vi.fn() }));
+afterEach(() => { vi.clearAllMocks(); vi.useRealTimers(); });
+
+describe('analytics interactions', () => {
+  it('counts each edited field once per session; cancellation and invalid values do not count as saved', () => {
+    const { result } = renderHook(() => usePlanEditor(), { wrapper: wrapperFor() });
+    act(() => result.current.begin());
+    act(() => result.current.change('assets', '7'));
+    act(() => result.current.change('assets', '700000'));
+    expect(vi.mocked(trackEvent).mock.calls.filter(([name]) => name === 'plan_field_edit')).toHaveLength(1);
+    act(() => result.current.cancel());
+    expect(trackEvent).not.toHaveBeenCalledWith('plan_save', expect.anything());
+    act(() => result.current.begin());
+    act(() => result.current.change('assets', '.'));
+    act(() => { expect(result.current.save()).toBe(false); });
+    act(() => result.current.change('assets', '700000'));
+    act(() => { expect(result.current.save()).toBe(true); });
+    expect(trackEvent).toHaveBeenCalledWith('plan_field_save', { field_name: 'assets' });
+    expect(trackEvent).toHaveBeenCalledWith('plan_save', { changed_fields: 1 });
+    expect(JSON.stringify(vi.mocked(trackEvent).mock.calls)).not.toContain('700000');
+  });
+  it('does not count derived budget fields or formatting-only changes as saved edits', () => {
+    const { result } = renderHook(() => usePlanEditor(), { wrapper: wrapperFor() });
+    act(() => result.current.begin());
+    act(() => result.current.change('assets', '600000.00'));
+    act(() => result.current.change('expenses', '130000'));
+    act(() => result.current.save());
+    expect(vi.mocked(trackEvent).mock.calls.filter(([name]) => name === 'plan_field_save')).toEqual([['plan_field_save', { field_name: 'expenses' }]]);
+    expect(trackEvent).toHaveBeenCalledWith('plan_save', { changed_fields: 1 });
+  });
+  it('save tracks a validated submission even if persistence later fails', () => {
+    const storage = memoryStorage();
+    const { result } = renderHook(() => usePlanEditor(), { wrapper: wrapperFor(storage) });
+    act(() => result.current.begin());
+    act(() => result.current.change('income', '888888'));
+    storage.setItem = () => { throw new Error('quota'); };
+    act(() => { expect(result.current.save()).toBe(true); });
+    expect(trackEvent).toHaveBeenCalledWith('plan_save', { changed_fields: 1 });
+    expect(JSON.stringify(vi.mocked(trackEvent).mock.calls)).not.toContain('888888');
+  });
+  it('debounces evaluation, tracks invalid input separately, and does not replay on basis changes or navigation', () => {
+    vi.useFakeTimers();
+    const Provider = wrapperFor();
+    const wrapper = ({ children }: { children: ReactNode }) => <MemoryRouter initialEntries={['/evaluate']}><Provider>{children}</Provider></MemoryRouter>;
+    const { result } = renderHook(() => useFinanceWorkspace(), { wrapper });
+    act(() => vi.advanceTimersByTime(900));
+    expect(trackEvent).not.toHaveBeenCalledWith('evaluation_run', expect.anything());
+    const id = result.current.project.draft.flows[0]!.id!;
+    act(() => result.current.project.change(`${id}.amount`, '1'));
+    act(() => vi.advanceTimersByTime(400));
+    act(() => result.current.project.change(`${id}.amount`, '10000'));
+    act(() => vi.advanceTimersByTime(800));
+    expect(trackEvent).toHaveBeenCalledWith('evaluation_run', { result_status: 'available', flow_count: 1 });
+    expect(vi.mocked(trackEvent).mock.calls.filter(([name]) => name === 'evaluation_run')).toHaveLength(1);
+    act(() => result.current.changeBasis('nominal'));
+    act(() => vi.advanceTimersByTime(900));
+    expect(vi.mocked(trackEvent).mock.calls.filter(([name]) => name === 'evaluation_run')).toHaveLength(1);
+    act(() => result.current.project.change(`${id}.amount`, '.'));
+    act(() => vi.advanceTimersByTime(800));
+    expect(trackEvent).toHaveBeenCalledWith('evaluation_run', { result_status: 'invalid', flow_count: 1 });
+    act(() => result.current.project.change(`${id}.amount`, '10001'));
+    act(() => result.current.nav.go('/'));
+    act(() => vi.advanceTimersByTime(900));
+    act(() => result.current.nav.go('/evaluate'));
+    act(() => vi.advanceTimersByTime(900));
+    expect(vi.mocked(trackEvent).mock.calls.filter(([name]) => name === 'evaluation_run')).toHaveLength(2);
+    act(() => result.current.project.add('active-income'));
+    expect(trackEvent).toHaveBeenCalledWith('evaluation_add_flow', { flow_type: 'active-income' });
+    act(() => result.current.project.clear());
+    act(() => vi.advanceTimersByTime(900));
+    expect(trackEvent).toHaveBeenCalledWith('evaluation_clear');
+    expect(JSON.stringify(vi.mocked(trackEvent).mock.calls)).not.toMatch(/10000|10001/);
+  });
+});

@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test } from './fixtures';
 import { createDocument, DEFAULT_STORAGE_KEY } from '../src/index';
 
 test('历史方案只读升级后可预测总被动收入，确认保存写入新结构', async ({ page }) => {

@@ -1,4 +1,4 @@
-import { expect, test, type Locator, type Page } from '@playwright/test';
+import { expect, test, type Locator, type Page } from './fixtures';
 import { createDocument, DEFAULT_STORAGE_KEY } from '../src/index';
 
 /** 独立注入合成方案，所有输入、保存与刷新只涉及测试浏览器，喵~ */

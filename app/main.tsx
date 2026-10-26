@@ -4,6 +4,9 @@ import { BrowserRouter } from 'react-router-dom';
 import { FinanceDocumentProvider } from './hooks/useFinanceDocument';
 import { FinanceApp } from './containers/FinanceApp';
 import './styles.css';
+import { initAnalytics } from './analytics';
+
+initAnalytics('G-5ZPDR2VWBB', import.meta.env.PROD);
 
 const storage = {
   /** 读取本应用存储键，权限异常由业务 Hook 处理，喵~ */

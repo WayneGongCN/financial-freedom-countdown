@@ -1,4 +1,5 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
+import { trackEvent } from '../analytics';
 import { planSchema, createMetricContext, evaluateMetric, metricPreset, type Plan } from '../../src/index';
 import { field, flowDraft, growthFields, inputText, parseFlow, readNumber, type Draft, type Errors } from '../model/forms';
 import { monthLabel, numberText } from '../model/format';
@@ -40,6 +41,8 @@ export function parsePlanDraft(draft: Draft, source: Plan): { value: Plan | null
 /** 管理同一页面的计划草稿、预览与提交，取消不会修改正式方案，喵~ */
 export function usePlanEditor() {
   const api = useFinanceDocument();
+  const editedFields = useRef(new Set<string>());
+  const initialEdited = useRef(false);
   const [draft, setDraft] = useState<Draft | null>(null);
   const [targetField, setTargetField] = useState<PlanFieldId | undefined>();
   const [submitError, setSubmitError] = useState<string | undefined>();
@@ -50,15 +53,26 @@ export function usePlanEditor() {
   const parsed = useMemo(() => draft ? parsePlanDraft(draft, api.document.plan) : { value: null, errors: {} }, [draft, api.document.plan]);
   const preview = useMemo(() => parsed.value ? previewGoal({ ...api.document, plan: parsed.value }, api.document.preferences.primaryGoalId ?? '') : null, [parsed.value, api.document]);
   /** 开始一次独立的计划编辑会话，喵~ */
-  function begin(fieldId?: PlanFieldId) { setDraft(planDraft(api.document.plan.currentExpenses === null && initialExpense && initial.value ? initial.value : api.document.plan)); setTargetField(fieldId); setSubmitError(undefined); }
+  function begin(fieldId?: PlanFieldId) { editedFields.current.clear(); setDraft(planDraft(api.document.plan.currentExpenses === null && initialExpense && initial.value ? initial.value : api.document.plan)); setTargetField(fieldId); setSubmitError(undefined); }
   /** 修改输入时保留字符串中间态，喵~ */
-  function change(id: string, value: string) { setDraft((previous) => previous ? { ...previous, [id]: value } : previous); setSubmitError(undefined); }
+  function change(id: string, value: string) {
+    if (draft && Object.hasOwn(draft, id) && draft[id] !== value && !editedFields.current.has(id)) {
+      editedFields.current.add(id); trackEvent('plan_field_edit', { field_name: id, entry_point: 'plan' });
+    }
+    setDraft((previous) => previous ? { ...previous, [id]: value } : previous); setSubmitError(undefined);
+  }
   /** 提交有效草稿并返回是否完成，喵~ */
   function save() {
     if (!parsed.value) return false;
     const error = api.commit({ ...api.document, plan: parsed.value });
     setSubmitError(error ?? undefined);
     if (error) return false;
+    const before = planDraft(api.document.plan);
+    const after = planDraft(parsed.value);
+    const changed = Object.keys(before).filter((key) => before[key] !== after[key]
+      && !(after.budgetKind === 'current' && ['budget', 'budgetGrowth', 'budgetRate'].includes(key)));
+    changed.forEach((key) => trackEvent('plan_field_save', { field_name: key }));
+    trackEvent('plan_save', { changed_fields: changed.length });
     setDraft(null); setTargetField(undefined); return true;
   }
   /** 取消整次会话并放弃尚未保存的所有配置，喵~ */
@@ -100,5 +114,8 @@ export function usePlanEditor() {
     begin, change, save, cancel,
     initialField: field({ expenses: initialExpense }, initial.errors, 'expenses', '当前年支出', { unit: '元' }),
     initialTarget: initialTarget?.status === 'available' ? numberText(initialTarget.value / 10000) : '—',
-    changeInitialExpense: setInitialExpense };
+    changeInitialExpense(value: string) {
+      if (value !== initialExpense && !initialEdited.current) { initialEdited.current = true; trackEvent('plan_field_edit', { field_name: 'expenses', entry_point: 'onboarding' }); }
+      setInitialExpense(value);
+    } };
 }

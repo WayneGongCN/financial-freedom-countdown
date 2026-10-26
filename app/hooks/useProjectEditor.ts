@@ -4,6 +4,7 @@ import { field, growthDraft, growthFields, inputText, parseGrowth, readNumber, t
 import { monthAt, monthLabel, monthOffset, numberText } from '../model/format';
 import type { SectionModel } from '../ui/types';
 import { useFinanceDocument } from './useFinanceDocument';
+import { trackEvent } from '../analytics';
 
 export interface ProjectDraft { id: string; name: string; notes: string; flows: Draft[] }
 
@@ -43,11 +44,14 @@ export function parseProjectDraft(draft: ProjectDraft, plan: Plan): { value: Pro
 }
 
 /** 管理单个试算项目，有效修改仅保存项目配置，不应用到基础计划，喵~ */
-export function useProjectEditor() {
+export function useProjectEditor(active = true) {
   const api = useFinanceDocument();
   const { plan, project } = api.document;
   const [draft, setDraft] = useState(() => projectDraft(project, plan));
   const [saveError, setSaveError] = useState<string | undefined>();
+  const [revision, setRevision] = useState(0);
+  const editedFields = useRef(new Set<string>());
+  useEffect(() => { editedFields.current.clear(); setRevision(0); }, [active]);
   const lastSaved = useRef(JSON.stringify(project));
   const baseMonth = useRef(plan.baseMonth);
   /** 导入或重置方案时同步项目草稿，自身提交不覆盖正在输入的原始文本，喵~ */
@@ -61,6 +65,7 @@ export function useProjectEditor() {
   /** 保存有效试算，输入不完整时只保留当前内存草稿，喵~ */
   function update(next: ProjectDraft) {
     setDraft(next);
+    setRevision((value) => value + 1);
     const candidate = parseProjectDraft(next, plan);
     if (candidate.value) {
       lastSaved.current = JSON.stringify(candidate.value);
@@ -72,6 +77,9 @@ export function useProjectEditor() {
     const separator = id.indexOf('.');
     const flowId = id.slice(0, separator);
     const key = id.slice(separator + 1);
+    const flow = draft.flows.find((item) => item.id === flowId);
+    if (!flow || !Object.hasOwn(flow, key) || key === 'id' || flow[key] === value) return;
+    if (!editedFields.current.has(key)) { editedFields.current.add(key); trackEvent('evaluation_field_edit', { field_name: key }); }
     update({ ...draft, flows: draft.flows.map((flow) => {
       if (flow.id !== flowId) return flow;
       const next = { ...flow, [key]: value };
@@ -80,11 +88,11 @@ export function useProjectEditor() {
     }) });
   }
   /** 添加独立增收或支出草稿，不将其误作投资资产转账，喵~ */
-  function add(kind: CashFlow['kind']) { if (draft.flows.length < 100) update({ ...draft, flows: [...draft.flows, emptyFlow(plan, kind)] }); }
+  function add(kind: CashFlow['kind']) { if (draft.flows.length < 100) { trackEvent('evaluation_add_flow', { flow_type: kind }); update({ ...draft, flows: [...draft.flows, emptyFlow(plan, kind)] }); } }
   /** 移除一笔项目现金流并重新试算，喵~ */
-  function remove(id: string) { update({ ...draft, flows: draft.flows.filter((flow) => flow.id !== id) }); }
+  function remove(id: string) { if (!draft.flows.some((flow) => flow.id === id)) return; trackEvent('evaluation_remove_flow'); update({ ...draft, flows: draft.flows.filter((flow) => flow.id !== id) }); }
   /** 清空试算项目，基础计划及目标保持原样，喵~ */
-  function clear() { lastSaved.current = 'null'; api.commit({ ...api.document, project: null }); setDraft(projectDraft(null, plan)); setSaveError(undefined); }
+  function clear() { trackEvent('evaluation_clear'); editedFields.current.clear(); setRevision(0); lastSaved.current = 'null'; api.commit({ ...api.document, project: null }); setDraft(projectDraft(null, plan)); setSaveError(undefined); }
   const sections: SectionModel[] = draft.flows.map((flow, index) => {
     const errors = parsed.errors[flow.id!] ?? {};
     const f = (key: string, label: string, extra = {}) => ({ ...field(flow, errors, key, label, extra), id: `${flow.id}.${key}` });
@@ -106,5 +114,5 @@ export function useProjectEditor() {
         { label: `第 ${Math.min(12, plan.horizonMonths)} 个月需预留（名义）`, value: `${numberText(reserveSchedule(plan, parsed.value)[Math.min(12, plan.horizonMonths)])} 元` }];
     } catch { return [{ label: '未来付款', value: '补齐增长假设后可计算' }]; }
   }, [parsed.value, plan]);
-  return { draft, sections, parsed, timingRows, change, add, remove, clear, canAdd: draft.flows.length < 100, error: saveError ?? parsed.error };
+  return { draft, revision, sections, parsed, timingRows, change, add, remove, clear, canAdd: draft.flows.length < 100, error: saveError ?? parsed.error };
 }

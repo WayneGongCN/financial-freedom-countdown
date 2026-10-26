@@ -1,4 +1,4 @@
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test, type Page } from './fixtures';
 import { createDocument, DEFAULT_STORAGE_KEY } from '../src/index';
 
 /** 使用合成方案验证同一编辑会话中的全部配置，不读取用户数据，喵~ */

@@ -2,7 +2,7 @@
 
 React H5 应用与独立 TypeScript 财务计算核心：根据收入、支出、资产、收益和通胀假设，计算可配置里程碑，并评估消费或增收项目对资产和达成时间的影响。
 
-包含总览、消费与增收评估、口径说明，以及计划和目标编辑面板。一个浏览器保存一个计划、多个目标和一个包含多条现金流的试算项目。没有服务端、HTTP API、账户系统或远程数据采集；字体由本地构建资源提供。示例和测试均为合成数据，首次使用不会预填示例资产或收益。
+包含总览、消费与增收评估、口径说明，以及计划和目标编辑面板。一个浏览器保存一个计划、多个目标和一个包含多条现金流的试算项目。没有服务端、业务 HTTP API 或账户系统；财务方案只保存在浏览器，生产站点使用 GA4 统计页面与操作行为；字体由本地构建资源提供。示例和测试均为合成数据，首次使用不会预填示例资产或收益。
 
 ## 运行
 
@@ -66,6 +66,32 @@ pnpm demo
 - 总览固定展示方案基准月购买力，不受已有显示偏好影响；目标小字标明基准月份和届时名义金额，零通胀与负通胀同样适用。通胀未知时标明“通胀未设置，暂按名义金额展示”；预测缺失时保留目标和时间两栏的占位及原因。消费评估保留原有显示偏好：非零通胀（包括负通胀）时允许切换，0% 或未知时按名义金额展示并隐藏切换。显示币值不改变目标定义或达成月份；当前门槛和达成月门槛分别读取核心目标结果。金额归因展示核心指定的同一参考月及其币值，缺失结果不当作零。
 - 原始存储读取失败时暂停写入并保留原值；保存失败保留内存数据，可重试。有效备份导入前确认覆盖，刷新不保留未确认编辑草稿。
 - 面板使用原生 `dialog` 实现模态焦点约束、Esc 关闭和焦点恢复；面板内容独立滚动，底部操作区适配动态视口及安全区。
+
+## GA4 使用分析
+
+生产媒体资源为「财富自由倒计时」（`560766131`），网站数据流 `16204229957`，衡量 ID `G-5ZPDR2VWBB`。公开衡量 ID 随 `app/main.tsx` 版本维护；只有生产构建且域名为 `financial-freedom-countdown.vercel.app` 时加载 GA，本地开发和 Vercel 预览不采集。
+
+`app/analytics.ts` 使用官方 gtag.js，异步加载并排队事件；脚本被拦截不会阻塞业务。按 [GA4 手动页面浏览文档](https://developers.google.com/analytics/devguides/collection/ga4/views) 关闭默认 `send_page_view`，数据流的增强型衡量保持关闭，避免 History API 和自动表单事件重复计数。手动记录初次访问和 React Router 页面切换；编辑面板、说明锚点和 StrictMode 重复执行不增加 PV。GA 自身负责基础会话、新用户与互动时长。
+
+| 事件 | 触发与参数 |
+| --- | --- |
+| `page_view` | 总览、评估、说明页访问；仅固定路径、页面标题和去除参数的来源 |
+| `plan_open` | 打开计划，`entry_point` 为核心卡片字段或 overview/evaluation |
+| `plan_field_edit` | 本次计划编辑中每个字段首次改动；`field_name`、`entry_point`（plan/onboarding）。首次引导年支出每次加载计一次 |
+| `plan_field_save` | 有效提交时，相比正式计划真正改变的字段；`field_name`。取消、校验失败、仅数值格式变化不计入 |
+| `plan_save` | 有效计划提交；`changed_fields`。表示提交到当前会话，后续本地存储成功与否由原有存储提示处理 |
+| `goal_save` | 有效目标提交，包括保存并设为主目标 |
+| `evaluation_open` | 每次进入评估页面，包括直接访问、刷新和浏览器返回 |
+| `evaluation_field_edit` | 本次评估访问中每个现金流字段首次改动；`field_name`，清空后重新计数 |
+| `evaluation_run` | 用户修改现金流后静止 800ms；`result_status` 为 available/unavailable/invalid，`flow_count` 为条数。退出页面取消待报事件；恢复存档、清空、仅切换显示币值不计新试算 |
+| `evaluation_add_flow` / `evaluation_remove_flow` / `evaluation_clear` | 添加（`flow_type`）、移除或清空现金流 |
+| `evaluation_basis_change` | 切换评估显示口径；`display_basis` 为 real/nominal |
+
+GA 已注册事件级自定义维度：编辑字段（`field_name`）、操作入口（`entry_point`）、试算状态（`result_status`）、现金流类型（`flow_type`）、显示口径（`display_basis`），可在探索报表中使用。
+
+核心字段 `assets`、`income`、`expenses`、`returnRate`、`inflation` 分别对应可投资资产、年主动收入、年支出、年化总收益率和通胀；增长、其他被动收入、预算和预测期限同样按字段名记录。**不发送金额、收益率数值、具体日期、目标名称、备注、文档/现金流 ID 或备份内容**；页面 URL 不带查询参数或锚点，外部来源仅保留域名，关闭 Google Signals 和广告个性化信号。
+
+测试使用合成数据，`e2e/fixtures.ts` 拦截 Google 统计请求，即使验证生产环境也不会向 GA 写入回归测试事件。检查实际采集时，使用独立验证访问并在 GA 实时报告核对事件；标准报表存在处理延迟。
 
 ## 部署到 Vercel
 
