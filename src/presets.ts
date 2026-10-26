@@ -46,10 +46,10 @@ export function createDefaultGoals(): Goal[] {
   ];
 }
 
-/** 创建默认不计通胀的空白文档，基准月份由调用方显式提供，喵~ */
+/** 创建带有可编辑长期假设的新文档，基准月份由调用方显式提供，喵~ */
 export function createDocument(baseMonth: string): FinanceDocument {
   return {
-    schemaVersion: SCHEMA_VERSION, modelVersion: MODEL_VERSION, plan: createPlan(baseMonth, { inflationRate: 0 }),
+    schemaVersion: SCHEMA_VERSION, modelVersion: MODEL_VERSION, plan: createPlan(baseMonth, { inflationRate: 0.02, investmentReturn: { annualRate: 0.05 } }),
     goals: createDefaultGoals(), project: null,
     preferences: { displayBasis: 'nominal', primaryGoalId: 'freedom-capital' },
   };

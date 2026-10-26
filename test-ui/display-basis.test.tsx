@@ -88,6 +88,7 @@ describe('金额显示与通胀假设', () => {
     const { result } = renderHook(() => useFinanceDocument(), { wrapper: wrapperFor(memoryStorage(null)) });
     const document = result.current.document;
     document.plan.inflationRate = null;
+    document.plan.investmentReturn = null;
     expect(overviewModel(document, calculateResults(document, null)).coreMetrics.map((metric) => metric.value)).toEqual(['—', '—', '—', '—', '—']);
   });
 
@@ -146,19 +147,22 @@ describe('金额显示与通胀假设', () => {
 });
 
 describe('新文档默认值与旧档兼容', () => {
-  it('新建与重新开始保留零通胀及名义金额存储偏好，总览使用购买力显示', () => {
+  it('新建与重新开始使用默认通胀和收益及名义金额存储偏好，总览使用购买力显示', () => {
     const { result } = renderHook(() => useFinanceDocument(), { wrapper: wrapperFor(memoryStorage(null)) });
-    expect(result.current.document.plan.inflationRate).toBe(0);
+    expect(result.current.document.plan.inflationRate).toBe(0.02);
+    expect(result.current.document.plan.investmentReturn).toEqual({ annualRate: 0.05 });
     expect(result.current.document.preferences.displayBasis).toBe('nominal');
     expect(overviewModel(result.current.document, calculateResults(result.current.document, null)).basis).toBe('real');
     act(() => { result.current.commit(documentWithInflation(null)); });
     act(() => { result.current.reset(); });
-    expect(result.current.document.plan.inflationRate).toBe(0);
+    expect(result.current.document.plan.inflationRate).toBe(0.02);
+    expect(result.current.document.plan.investmentReturn).toEqual({ annualRate: 0.05 });
     expect(result.current.document.preferences.displayBasis).toBe('nominal');
   });
 
-  it('加载与导入旧档保留未知通胀及购买力偏好', () => {
+  it('加载与导入旧档保留未知通胀、未知收益及购买力偏好', () => {
     const legacy = documentWithInflation(null);
+    legacy.plan.investmentReturn = null;
     const { result } = renderHook(() => useFinanceDocument(), { wrapper: wrapperFor(memoryStorage(legacy)) });
     expect(result.current.document).toEqual(legacy);
     act(() => { result.current.reset(); });

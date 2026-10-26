@@ -44,19 +44,23 @@ test('首次填写计划，在同一面板设置预测期限并保存恢复', as
   expect(saved.plan.horizonMonths).toBe(600);
 });
 
-test('新方案默认不计通胀，填写三项核心参数和资产即可预测', async ({ page }) => {
+test('新方案默认 2% 通胀和 5% 收益，填写资产与收支即可预测', async ({ page }) => {
   await page.goto('/');
   await page.getByLabel('当前年支出', { exact: true }).fill('120000');
   await page.getByRole('button', { name: '填写我的计划' }).click();
   await page.getByLabel('当前可投资资产', { exact: true }).fill('600000');
   await page.getByLabel('税后年主动收入', { exact: true }).fill('240000');
-  await page.getByLabel('年化总收益率', { exact: true }).fill('8');
-  await expect(page.getByRole('region', { name: '草稿预测' })).toContainText('年 9 个月');
+  await expect(page.getByLabel('年化总收益率', { exact: true })).toHaveValue('5');
+  await expect(page.getByLabel('年通胀率', { exact: true })).toHaveValue('2');
+  await expect(page.getByRole('region', { name: '草稿预测' })).toContainText('年 11 个月');
   await page.getByRole('button', { name: '完成并保存' }).click();
   await expect(page.getByRole('radiogroup', { name: '金额显示口径', exact: true })).toHaveCount(0);
   await expect(page.getByRole('region', { name: '达成预测', exact: true })).toContainText(/2026 年 10 月购买力.*届时约/);
   await page.reload();
-  await expect(page.getByText('年 9 个月', { exact: true })).toBeVisible();
+  await expect(page.getByText('年 11 个月', { exact: true })).toBeVisible();
+  const saved = await page.evaluate((key) => JSON.parse(localStorage.getItem(key)!), DEFAULT_STORAGE_KEY);
+  expect(saved.plan.inflationRate).toBe(0.02);
+  expect(saved.plan.investmentReturn).toEqual({ annualRate: 0.05 });
 });
 
 test('计划无说明入口，取消放弃草稿且目标与消费评估帮助仍可跳转', async ({ page }) => {

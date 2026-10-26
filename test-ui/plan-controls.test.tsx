@@ -16,9 +16,9 @@ describe('集中调整计划核心参数', () => {
     expect(fields[1]).toMatchObject({ value: '240000', slider: { min: 0, max: 1000000, step: 1000 } });
     expect(fields[2]).toMatchObject({ value: '120000', slider: { min: 0, max: 1000000, step: 1000 } });
     expect(fields[3]).toMatchObject({ value: '8', slider: { min: -20, max: 30, step: 0.1 } });
-    expect(fields[3]!.hint).toBe('填写未扣通胀的预期年化总收益率。');
+    expect(fields[3]!.hint).toBe('默认 5%；填写未扣通胀的预期年化总收益率。');
     expect(fields[4]).toMatchObject({ label: '年通胀率', value: '3', slider: { min: -5, max: 10, step: 0.1 } });
-    expect(fields[4]!.hint).toBe('0% 表示不计通胀；留空表示未设置。');
+    expect(fields[4]!.hint).toBe('默认 2%；0% 表示不计通胀；留空表示未设置。');
     const document = fixtureDocument();
     expect(result.current.model!.targetName).toBe(document.goals.find((goal) => goal.id === document.preferences.primaryGoalId)!.name);
   });
@@ -190,11 +190,11 @@ describe('集中调整计划核心参数', () => {
     expect(result.current.model!.preview).toBeDefined();
   });
 
-  it('新空白方案进入核心参数时不替用户填入财务金额', () => {
+  it('新空白方案预填通胀和收益假设，财务金额仍需用户填写', () => {
     const { result } = renderHook(() => usePlanEditor(), { wrapper: wrapperFor(memoryStorage(null)) });
     act(() => result.current.begin());
-    expect(result.current.model!.sections[0]!.fields.map((field) => field.value)).toEqual(['', '', '', '', '0']);
-    expect(result.current.parsed.value).toMatchObject({ activeIncome: null, currentExpenses: null, investmentReturn: null, inflationRate: 0 });
+    expect(result.current.model!.sections[0]!.fields.map((field) => field.value)).toEqual(['', '', '', '5', '2']);
+    expect(result.current.parsed.value).toMatchObject({ initialAssets: null, activeIncome: null, currentExpenses: null, investmentReturn: { annualRate: 0.05 }, inflationRate: 0.02 });
   });
 
   it.each([
