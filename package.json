@@ -23,7 +23,7 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:coverage": "vitest run --coverage",
-    "check": "pnpm typecheck && pnpm typecheck:web && pnpm lint && pnpm test:coverage && pnpm test:ui && pnpm build && pnpm build:web",
+    "check": "pnpm typecheck && pnpm typecheck:web && pnpm lint && pnpm test:coverage && pnpm test:ui && pnpm build && pnpm build:web && pnpm test:seo",
     "demo": "pnpm build && node examples/demo.mjs",
     "dev": "vite",
     "typecheck:web": "tsc -p tsconfig.app.json",
@@ -31,7 +31,8 @@
     "preview": "vite preview",
     "lint": "eslint app",
     "test:ui": "vitest run --config vitest.ui.config.ts",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "test:seo": "node scripts/check-seo.mjs"
   },
   "dependencies": {
     "@fontsource/noto-sans-sc": "^5.3.1",

@@ -4,8 +4,9 @@
   "installCommand": "npm exec --yes --package=pnpm@11.10.0 -- pnpm install --frozen-lockfile",
   "buildCommand": "pnpm typecheck:web && pnpm build:web",
   "outputDirectory": "web-dist",
+  "trailingSlash": false,
   "rewrites": [
-    { "source": "/evaluate", "destination": "/index.html" },
-    { "source": "/guide", "destination": "/index.html" }
+    { "source": "/evaluate", "destination": "/evaluate.html" },
+    { "source": "/guide", "destination": "/guide.html" }
   ]
 }

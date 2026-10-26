@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
+<rect width="1200" height="630" fill="#f7f7f7"/><rect x="44" y="44" width="1112" height="542" rx="24" fill="white"/>
+<rect x="92" y="94" width="72" height="72" rx="18" fill="#202020"/><g transform="translate(96 98)" fill="none" stroke="white" stroke-width="4" stroke-linecap="round"><path d="M18 17h28M18 47h28M22 18c0 10 20 18 20 28M42 18c0 10-20 18-20 28"/></g>
+<g font-family="PingFang SC, Noto Sans CJK SC, sans-serif" fill="#202020"><text x="92" y="270" font-size="64" font-weight="600">财富自由倒计时</text><text x="94" y="340" font-size="32" fill="#666">看清目标，评估每一步</text><text x="94" y="430" font-size="24">资产与目标　·　预计达成时间　·　消费与增收评估</text><text x="94" y="516" font-size="22" fill="#666">freedom-countdown.waynegong.com</text></g>
+<g transform="translate(930 100)" fill="none" stroke="#202020" stroke-width="10" stroke-linecap="round"><path d="M-40 20h150M-40 340h150M-10 24c0 120 90 192 90 312M80 24c0 120-90 192-90 312"/></g>
+</svg>

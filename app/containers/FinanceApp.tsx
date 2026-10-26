@@ -3,12 +3,14 @@ import { guideTopics } from '../model/guide';
 import { AppLayout, BottomNav, BottomSheet, Button, Disclosure, HelpLink } from '../ui/primitives';
 import { EditorPreview, EvaluationView, GoalEditorView, GuideView, OverviewView, PlanEditorView, StorageNotice } from '../ui/views';
 import s from '../ui/ui.module.css';
+import { PublicContent } from '../ui/SeoContent';
+import { seoPages, seoPath } from '../seo';
 
 /** 将页面、编辑业务 Hook 与纯展示组件连接起来，喵~ */
 export function FinanceApp() {
   const { api, nav, plan, goal, project, transfer, results, openPlan, openGoal, changeBasis, savePlan, saveGoal, closeEditor, importFile, enterGoalSide, removeGoal, makePrimary, reset } = useFinanceWorkspace();
 
-  return <AppLayout scrollRef={nav.scrollRef} header={<><h1>{nav.guide ? '口径说明' : '财富自由倒计时'}</h1><HelpLink onClick={nav.guide ? nav.returnFromGuide : () => nav.help()}>{nav.guide ? '‹ 返回' : '口径说明 ↗'}</HelpLink></>}
+  return <AppLayout scrollRef={nav.scrollRef} header={<><h1>{seoPages[seoPath(nav.location.pathname) ?? '/'].heading}</h1><HelpLink href={nav.guide ? undefined : '/guide'} onClick={nav.guide ? nav.returnFromGuide : () => nav.help()}>{nav.guide ? '‹ 返回' : '口径说明 ↗'}</HelpLink></>}
     navigation={nav.guide ? null : <BottomNav active={nav.location.pathname} onSelect={nav.go} />}>
     {api.error && <div style={{ padding: '12px 24px' }}><StorageNotice message={api.error} blocked={api.blocked} onRetry={api.retrySave} onReset={reset} /></div>}
     {api.notice && <p className={s.caption} role="status" style={{ padding: '12px 24px' }}>{api.notice}</p>}
@@ -16,6 +18,7 @@ export function FinanceApp() {
       ? <EvaluationView model={results.evaluation} sections={project.sections} timingRows={project.timingRows} canAdd={project.canAdd} onChange={project.change} onHelp={nav.help} onBasisChange={changeBasis}
         onAddExpense={() => project.add('expense')} onAddIncome={() => project.add('active-income')} onRemove={project.remove} onClear={project.clear} onEditPlan={openPlan} />
       : <OverviewView model={results.overview} initialField={plan.initialField} initialTarget={plan.initialTarget} onInitialExpense={plan.changeInitialExpense} onHelp={nav.help} onEditPlan={openPlan} onEditGoal={(id) => openGoal(id ?? api.document.preferences.primaryGoalId ?? undefined)} onAddGoal={() => openGoal()} onEvaluate={() => nav.go('/evaluate')} />}
+    {!nav.guide && <PublicContent evaluation={nav.location.pathname === '/evaluate'} onNavigate={path => path === '/guide' ? nav.help() : nav.go(path)} />}
     <BottomSheet open={!nav.guide && nav.panel === 'plan' && !!plan.model} title={plan.model?.title ?? '我的计划'} onClose={closeEditor}
       summary={plan.model && <EditorPreview model={plan.model} />}
       footer={<Button onClick={savePlan} disabled={!plan.model?.canSave}>{plan.model?.saveLabel ?? '完成并保存'}</Button>}>

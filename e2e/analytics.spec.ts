@@ -6,7 +6,7 @@ async function commands(page: Page) {
 }
 
 test('生产 GA 页面去重、核心字段保存和评估埋点不包含财务数值', async ({ page, baseURL }) => {
-  test.skip(new URL(baseURL!).hostname !== 'financial-freedom-countdown.vercel.app', 'GA 只在生产域名开启');
+  test.skip(new URL(baseURL!).hostname !== 'freedom-countdown.waynegong.com', 'GA 只在生产域名开启');
   const document = createDocument('2026-10');
   document.plan = { ...document.plan, initialAssets: 600000, inflationRate: 0.03, investmentReturn: { annualRate: 0.08 }, activeIncome: { amount: 240000, growth: { kind: 'fixed' } }, currentExpenses: { amount: 120000, growth: { kind: 'inflation' } } };
   await page.addInitScript(({ key, value }) => localStorage.setItem(key, value), { key: DEFAULT_STORAGE_KEY, value: JSON.stringify(document) });
@@ -17,10 +17,10 @@ test('生产 GA 页面去重、核心字段保存和评估埋点不包含财务�
   await page.getByRole('button', { name: '完成并保存', exact: true }).click();
   await expect.poll(async () => (await commands(page)).filter(([, name]) => name === 'plan_save').length).toBe(1);
   expect((await commands(page)).filter(([, name]) => name === 'page_view')).toHaveLength(1);
-  await page.getByRole('button', { name: '评估', exact: true }).click();
+  await page.getByRole('link', { name: '评估', exact: true }).click();
   await page.getByLabel('消费金额', { exact: true }).fill('12345');
   await expect.poll(async () => (await commands(page)).filter(([, name]) => name === 'evaluation_run').length).toBe(1);
-  await page.getByRole('button', { name: '总览', exact: true }).click();
+  await page.getByRole('link', { name: '总览', exact: true }).click();
   await expect(page).toHaveURL(/\/$/);
   await expect.poll(async () => (await commands(page)).filter(([, name]) => name === 'page_view').length).toBe(3);
   await page.goBack();

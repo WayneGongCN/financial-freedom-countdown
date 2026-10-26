@@ -73,14 +73,14 @@ test('计划无说明入口，取消放弃草稿且目标与消费评估帮助�
   await expect(page.getByText('当前目标 300 万', { exact: true })).toBeVisible();
   await page.getByRole('button', { name: '资产覆盖生活支出', exact: true }).click();
   const goal = page.getByRole('dialog', { name: '配置目标', exact: true });
-  await goal.getByRole('region', { name: '自定义左侧口径', exact: true }).getByRole('button', { name: '说明 ↗', exact: true }).click();
+  await goal.getByRole('region', { name: '自定义左侧口径', exact: true }).getByRole('link', { name: '说明 ↗', exact: true }).click();
   await expect(page).toHaveURL(/\/guide#passive-income$/);
   await page.getByRole('button', { name: '‹ 返回', exact: true }).click();
   await expect(goal).toBeVisible();
   await goal.getByRole('button', { name: '取消', exact: true }).click();
-  await page.getByRole('button', { name: '评估', exact: true }).click();
+  await page.getByRole('link', { name: '评估', exact: true }).click();
   await page.getByText('时间、增长与收益设置', { exact: true }).click();
-  await page.getByRole('button', { name: '报价与增长规则 ↗', exact: true }).click();
+  await page.getByRole('link', { name: '报价与增长规则 ↗', exact: true }).click();
   await expect(page).toHaveURL(/\/guide#growth-rules$/);
   await page.getByRole('button', { name: '‹ 返回', exact: true }).click();
   await expect(page).toHaveURL(/\/evaluate$/);
@@ -96,7 +96,7 @@ test('添加购买力目标，评估消费及额外收益，显示口径不改�
   await page.getByRole('button', { name: '保存目标', exact: true }).click();
   await expect(page.getByRole('button', { name: /攒够一百万购买力/ })).toContainText('2 年 9 个月');
   await expect(page.getByRole('radiogroup', { name: '金额显示口径', exact: true })).toHaveCount(0);
-  await page.getByRole('button', { name: '评估', exact: true }).click();
+  await page.getByRole('link', { name: '评估', exact: true }).click();
   await page.getByLabel('消费金额', { exact: true }).fill('10000');
   await expect(page.getByText('预计延后', { exact: true })).toBeVisible();
   await expect(page.getByText('15 年 5 个月 → 15 年 6 个月')).toBeVisible();
@@ -109,7 +109,7 @@ test('添加购买力目标，评估消费及额外收益，显示口径不改�
   await page.getByRole('button', { name: '＋ 添加额外收入', exact: true }).click();
   await page.getByLabel('额外收入', { exact: true }).fill('2000');
   await expect(page.getByText('预计提前', { exact: true })).toBeVisible();
-  await page.getByRole('button', { name: '总览', exact: true }).click();
+  await page.getByRole('link', { name: '总览', exact: true }).click();
   await expect(page.getByText('年 5 个月', { exact: true })).toBeVisible();
 });
 
@@ -178,6 +178,8 @@ for (const width of [320, 375, 390, 430, 1280]) {
     expect(incomeBox.y + incomeBox.height).toBeLessThanOrEqual(returnBox.y);
     const main = page.getByRole('main');
     await main.evaluate((element) => { element.scrollTop = element.scrollHeight; });
+    await expect(page.getByRole('navigation', { name: '相关工具与说明' }).getByRole('link', { name: '4% 法则与计算口径' })).toBeInViewport();
+    await page.getByRole('button', { name: '评估一笔消费' }).scrollIntoViewIfNeeded();
     await expect(page.getByRole('button', { name: '评估一笔消费' })).toBeInViewport();
     if (width === 390) {
       await main.evaluate((element) => { element.scrollTop = 0; });
@@ -233,7 +235,7 @@ for (const inflation of [null, 0, 0.03, -0.02]) {
     const forecast = page.getByRole('region', { name: '达成预测', exact: true });
     if (inflation === null) await expect(forecast).toContainText('通胀未设置，暂按名义金额展示');
     else await expect(forecast).toContainText(/2026 年 10 月购买力.*届时约/);
-    await page.getByRole('button', { name: '评估', exact: true }).click();
+    await page.getByRole('link', { name: '评估', exact: true }).click();
     await page.getByLabel('消费金额', { exact: true }).fill('10000');
     await page.getByText('金额影响', { exact: true }).click();
     await expect(page.getByRole('radiogroup', { name: '评估金额显示口径', exact: true })).toHaveCount(enabled ? 1 : 0);
