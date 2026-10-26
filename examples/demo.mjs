@@ -11,7 +11,7 @@ for (const [inflation, incomeGrowth] of [[0, 0], [0.03, 0], [0.03, 0.03]]) {
   const plan = createPlan('2026-10', {
     initialAssets: 600000, inflationRate: inflation,
     investmentReturn: { annualRate: 0.08 },
-    activeIncome: { amount: 240000, growth: { kind: 'custom', annualRate: incomeGrowth } },
+    activeIncome: [{ amount: 240000, growth: { kind: 'custom', annualRate: incomeGrowth }, durationMonths: null }],
     currentExpenses: { amount: 120000, growth: { kind: 'inflation' } },
   });
   const result = compareProject(plan, goals, purchase);

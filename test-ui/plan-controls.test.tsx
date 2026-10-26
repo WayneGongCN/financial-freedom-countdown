@@ -42,7 +42,7 @@ describe('集中调整计划核心参数', () => {
     const parsed = parsePlanDraft({ ...planDraft(plan), assets: '15000000.25', income: '1234567.89', expenses: '1000001.5', returnRate: '35.25' }, plan);
     expect(parsed.value).toMatchObject({
       initialAssets: 15000000.25,
-      activeIncome: { amount: 1234567.89 }, currentExpenses: { amount: 1000001.5 },
+      activeIncome: [{ amount: 1234567.89, durationMonths: null }], currentExpenses: { amount: 1000001.5 },
       investmentReturn: { annualRate: 0.3525 },
     });
     expect(parsePlanDraft({ ...planDraft(plan), returnRate: '-20.1' }, plan).value?.investmentReturn?.annualRate).toBeCloseTo(-0.201);
@@ -56,11 +56,11 @@ describe('集中调整计划核心参数', () => {
     act(() => result.current.begin());
     act(() => { result.current.change('budgetKind', 'custom'); for (const prefix of ['income', 'expenses', 'external', 'budget']) result.current.change(`${prefix}Growth`, 'custom'); });
     const model = result.current.model!;
-    const fields = model.sections.flatMap((section) => section.fields);
+    const fields = [...result.current.incomeSchedule!.stages.flatMap((stage) => stage.fields), ...model.sections.flatMap((section) => section.fields)];
     expect(model).toMatchObject({ title: '我的计划', saveLabel: '完成并保存' });
-    expect(model.sections.map((section) => section.id)).toEqual(['core-controls', 'income-growth', 'expense-growth', 'external', 'budget', 'horizon', 'amount-basis']);
+    expect(model.sections.map((section) => section.id)).toEqual(['core-controls', 'expense-growth', 'external', 'budget', 'horizon', 'amount-basis']);
     expect(model.sections.every((section) => !section.destination && !section.collapsed)).toBe(true);
-    expect(model.sections.filter((section) => section.layout === 'growth').map((section) => section.id)).toEqual(['income-growth', 'expense-growth']);
+    expect(model.sections.filter((section) => section.layout === 'growth').map((section) => section.id)).toEqual(['expense-growth']);
     expect(model.sections.filter((section) => section.layout === 'compact').map((section) => section.id)).toEqual(['external', 'budget', 'horizon', 'amount-basis']);
     expect(model.sections.every((section) => section.help === undefined)).toBe(true);
     expect(new Set(fields.map((field) => field.label)).size).toBe(fields.length);
@@ -125,17 +125,17 @@ describe('集中调整计划核心参数', () => {
       }
     });
     expect(result.current.parsed.value).toMatchObject({
-      activeIncome: { growth: { kind: 'custom', annualRate: 0.05 } },
+      activeIncome: [{ growth: { kind: 'custom', annualRate: 0.05 }, durationMonths: null }],
       currentExpenses: { growth: { kind: 'custom', annualRate: 0.02 } },
       externalIncome: { amount: 24000, growth: { kind: 'custom', annualRate: 0.03 } },
       retirementBudget: { kind: 'custom', flow: { amount: 96000, growth: { kind: 'custom', annualRate: 0.04 } } },
     });
-    const choices = result.current.model!.sections.flatMap((section) => section.fields).filter((field) => field.id.endsWith('Growth'));
+    const choices = [...result.current.incomeSchedule!.stages.flatMap((stage) => stage.fields), ...result.current.model!.sections.flatMap((section) => section.fields)].filter((field) => field.id.endsWith('Growth'));
     expect(choices).toHaveLength(4);
     for (const choice of choices) expect(choice.options?.map((option) => option.value)).toEqual(['fixed', 'inflation', 'custom']);
     act(() => result.current.change('expensesGrowth', 'inflation'));
     expect(result.current.parsed.value?.currentExpenses?.growth).toEqual({ kind: 'inflation' });
-    expect(result.current.parsed.value?.activeIncome?.growth).toEqual({ kind: 'custom', annualRate: 0.05 });
+    expect(result.current.parsed.value?.activeIncome?.[0]?.growth).toEqual({ kind: 'custom', annualRate: 0.05 });
   });
 
   it('预算来源切换在同页保留自定义草稿，引用当前支出同步金额与增长', () => {
@@ -184,7 +184,7 @@ describe('集中调整计划核心参数', () => {
     });
     expect(result.current.model!.canSave).toBe(false);
     expect(result.current.model!.preview).toBeUndefined();
-    expect(result.current.model!.sections.flatMap((section) => section.fields).find((field) => field.id === `${prefix}Rate`)!.error).toBeTruthy();
+    expect([...result.current.incomeSchedule!.stages.flatMap((stage) => stage.fields), ...result.current.model!.sections.flatMap((section) => section.fields)].find((field) => field.id === `${prefix}Rate`)!.error).toBeTruthy();
     act(() => result.current.change(`${prefix}Rate`, '2'));
     expect(result.current.model!.canSave).toBe(true);
     expect(result.current.model!.preview).toBeDefined();

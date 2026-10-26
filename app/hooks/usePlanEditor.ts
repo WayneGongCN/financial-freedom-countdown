@@ -6,13 +6,14 @@ import { monthLabel, numberText } from '../model/format';
 import type { EditorModel, PlanFieldId, SectionModel } from '../ui/types';
 import { useFinanceDocument } from './useFinanceDocument';
 import { previewGoal } from './useFinanceResults';
+import { incomeDraft, incomeDuration, incomePrefix, incomeScheduleModel, incomeStageDraft, parseIncomeDraft, planAnalyticsField } from '../model/income-schedule';
 
 /** 生成计划编辑草稿，不填充示例财务数值，喵~ */
 export function planDraft(plan: Plan): Draft {
   return { assets: inputText(plan.initialAssets), inflation: inputText(plan.inflationRate, 100),
     returnRate: inputText(plan.investmentReturn?.annualRate, 100),
     horizon: String(plan.horizonMonths), budgetKind: plan.retirementBudget.kind,
-    ...flowDraft('income', plan.activeIncome, { kind: 'fixed' }), ...flowDraft('expenses', plan.currentExpenses, { kind: 'inflation' }),
+    ...incomeDraft(plan), ...flowDraft('expenses', plan.currentExpenses, { kind: 'inflation' }),
     ...flowDraft('external', plan.externalIncome, { kind: 'fixed' }),
     ...flowDraft('budget', plan.retirementBudget.kind === 'custom' ? plan.retirementBudget.flow : plan.currentExpenses, { kind: 'inflation' }) };
 }
@@ -32,7 +33,7 @@ export function parsePlanDraft(draft: Draft, source: Plan): { value: Plan | null
   if (draft.budgetKind === 'custom' && budget === null) errors.budget = '请输入自由后预算';
   const candidate = { ...source, initialAssets, inflationRate, horizonMonths: horizon,
     investmentReturn: rate === null ? null : { annualRate: rate },
-    activeIncome: parseFlow(draft, 'income', errors), currentExpenses: parseFlow(draft, 'expenses', errors), externalIncome: parseFlow(draft, 'external', errors),
+    activeIncome: parseIncomeDraft(draft, errors), currentExpenses: parseFlow(draft, 'expenses', errors), externalIncome: parseFlow(draft, 'external', errors),
     retirementBudget: draft.budgetKind === 'custom' ? { kind: 'custom', flow: budget } : { kind: 'current' } };
   const parsed = planSchema.safeParse(candidate);
   return { value: parsed.success && Object.keys(errors).length === 0 ? parsed.data : null, errors };
@@ -52,14 +53,51 @@ export function usePlanEditor() {
     ? evaluateMetric(createMetricContext(initial.value), metricPreset('freedom-capital')) : null, [initial.value]);
   const parsed = useMemo(() => draft ? parsePlanDraft(draft, api.document.plan) : { value: null, errors: {} }, [draft, api.document.plan]);
   const preview = useMemo(() => parsed.value ? previewGoal({ ...api.document, plan: parsed.value }, api.document.preferences.primaryGoalId ?? '') : null, [parsed.value, api.document]);
+  const incomeSchedule = draft ? incomeScheduleModel(draft, parsed.errors) : null;
   /** 开始一次独立的计划编辑会话，喵~ */
   function begin(fieldId?: PlanFieldId) { editedFields.current.clear(); setDraft(planDraft(api.document.plan.currentExpenses === null && initialExpense && initial.value ? initial.value : api.document.plan)); setTargetField(fieldId); setSubmitError(undefined); }
-  /** 修改输入时保留字符串中间态，喵~ */
-  function change(id: string, value: string) {
-    if (draft && Object.hasOwn(draft, id) && draft[id] !== value && !editedFields.current.has(id)) {
-      editedFields.current.add(id); trackEvent('plan_field_edit', { field_name: id, entry_point: 'plan' });
+  /** 每次编辑会话按固定业务字段记录一次，喵~ */
+  function trackEdit(id: string) {
+    const name = planAnalyticsField(id);
+    if (!editedFields.current.has(name)) {
+      editedFields.current.add(name); trackEvent('plan_field_edit', { field_name: name, entry_point: 'plan' });
     }
-    setDraft((previous) => previous ? { ...previous, [id]: value } : previous); setSubmitError(undefined);
+  }
+  /** 修改输入时保留字符串中间态，切换年月单位保持有效期限，喵~ */
+  function change(id: string, value: string) {
+    if (!draft || !Object.hasOwn(draft, id) || draft[id] === value) return;
+    trackEdit(id);
+    setDraft((previous) => {
+      if (!previous) return previous;
+      const next = { ...previous, [id]: value };
+      if (id.startsWith('income') && id.endsWith('Unit')) {
+        const index = Array.from({ length: Number(previous.incomeStageCount) }, (_, i) => i).find((i) => `${incomePrefix(i)}Unit` === id)!;
+        const errors: Errors = {};
+        const months = incomeDuration(previous, index, errors);
+        if (months !== null && Object.keys(errors).length === 0) next[`${incomePrefix(index)}Duration`] = String(value === 'years' ? months / 12 : months);
+      }
+      return next;
+    });
+    setSubmitError(undefined);
+  }
+  /** 添加需要用户填写金额的新阶段，不推测未来收入，喵~ */
+  function addIncomeStage() {
+    if (!draft || !incomeSchedule?.canAdd) return;
+    const count = Number(draft.incomeStageCount);
+    trackEdit('incomeSchedule');
+    setDraft({ ...draft, ...incomeStageDraft(null, count), incomeStageCount: String(count + 1) }); setSubmitError(undefined);
+  }
+  /** 移除后续阶段并重新连续编号，首段金额始终保留，喵~ */
+  function removeIncomeStage(id: string) {
+    if (!draft) return;
+    const prefixes = Array.from({ length: Number(draft.incomeStageCount) }, (_, index) => incomePrefix(index));
+    if (!prefixes.slice(1).includes(id)) return;
+    const next = Object.fromEntries(Object.entries(draft).filter(([key]) => !key.startsWith('income')));
+    prefixes.filter((prefix) => prefix !== id).forEach((prefix, index) => {
+      for (const suffix of ['', 'Growth', 'Rate', 'Mode', 'Duration', 'Unit']) next[`${incomePrefix(index)}${suffix}`] = draft[`${prefix}${suffix}`]!;
+    });
+    next.incomeStageCount = String(prefixes.length - 1);
+    trackEdit('incomeSchedule'); setDraft(next); setSubmitError(undefined);
   }
   /** 提交有效草稿并返回是否完成，喵~ */
   function save() {
@@ -69,8 +107,8 @@ export function usePlanEditor() {
     if (error) return false;
     const before = planDraft(api.document.plan);
     const after = planDraft(parsed.value);
-    const changed = Object.keys(before).filter((key) => before[key] !== after[key]
-      && !(after.budgetKind === 'current' && ['budget', 'budgetGrowth', 'budgetRate'].includes(key)));
+    const changed = [...new Set([...new Set([...Object.keys(before), ...Object.keys(after)])].filter((key) => before[key] !== after[key]
+      && !(after.budgetKind === 'current' && ['budget', 'budgetGrowth', 'budgetRate'].includes(key))).map(planAnalyticsField))];
     changed.forEach((key) => trackEvent('plan_field_save', { field_name: key }));
     trackEvent('plan_save', { changed_fields: changed.length });
     setDraft(null); setTargetField(undefined); return true;
@@ -92,7 +130,6 @@ export function usePlanEditor() {
         f('expenses', '当前年支出', { unit: '元/年', slider: amountSlider }),
         f('returnRate', '年化总收益率', { unit: '%', hint: '填写未扣通胀的预期年化总收益率。', slider: { min: -20, max: 30, step: 0.1 } }),
         f('inflation', '年通胀率', { unit: '%', hint: '0% 表示不计通胀；留空表示未设置。', slider: { min: -5, max: 10, step: 0.1 } })] },
-        { id: 'income-growth', title: '收入增长', layout: 'growth', fields: compactGrowth('income', '收入') },
         { id: 'expense-growth', title: '支出增长', layout: 'growth', fields: compactGrowth('expenses', '支出'),
           note: '自定义增长是独立的名义年增长率，不额外叠加通胀。' },
         { id: 'external', title: '其他被动收入', layout: 'compact', fields: [f('external', '其他年被动收入（税费后）', { unit: '元/年', hint: '当前持续收取的资产池外税后收入，例如未计入资产池的房产净租金、养老金。资产池内投资收益已计入总收益，不重复填写。' }), ...growth('external', '其他被动收入')],
@@ -104,9 +141,16 @@ export function usePlanEditor() {
         { id: 'amount-basis', layout: 'compact', fields: [], note: `金额基准 · ${monthLabel(api.document.plan.baseMonth)}` }];
     model = { title: '我的计划', sections, canSave: !!parsed.value, saveLabel: '完成并保存',
       targetName: preview?.targetName ?? api.document.goals.find((goal) => goal.id === api.document.preferences.primaryGoalId)?.name,
-      ...(preview ? { preview: preview.hero, rows: preview.rows } : {}), ...(submitError || !parsed.value ? { error: submitError ?? '请修正输入；缺失的可选参数可以留空。' } : {}) };
+      ...(preview ? { preview: preview.hero, rows: preview.rows, notices: preview.notices } : {}), ...(submitError || !parsed.value ? { error: submitError ?? '请修正输入；缺失的可选参数可以留空。' } : {}) };
   }
-  return { model, draft, parsed, targetField,
+  return { model, draft, parsed, targetField, incomeSchedule,
+    /** 添加后续收入阶段，前段必须已有有效有限期限，喵~ */
+    addIncomeStage,
+    /**
+     * 移除指定后续收入阶段，修改只保留在当前草稿，喵~
+     * @param id 当前编辑会话的阶段标识，喵~
+     */
+    removeIncomeStage,
     /**
      * 初始化独立计划草稿并记录本次卡片定位目标，喵~
      * @param fieldId 需要短暂高亮的字段，省略时从表单顶部开始，喵~

@@ -23,7 +23,7 @@ describe('计划草稿与正式方案', () => {
     const plan = fixtureDocument().plan;
     const result = parsePlanDraft({ ...planDraft(plan), incomeGrowth: 'custom', incomeRate: '5', inflation: '3' }, plan).value!;
     expect(result.investmentReturn?.annualRate).toBe(0.08);
-    expect(result.activeIncome?.growth).toEqual({ kind: 'custom', annualRate: 0.05 });
+    expect(result.activeIncome?.[0]?.growth).toEqual({ kind: 'custom', annualRate: 0.05 });
     expect(result.currentExpenses?.growth).toEqual({ kind: 'inflation' });
   });
   it('空通胀、明确零通胀和自定义通胀独立处理', () => {
@@ -48,7 +48,7 @@ describe('计划草稿与正式方案', () => {
     act(() => result.current.editor.change('incomeGrowth', 'inflation'));
     act(() => result.current.editor.change('external', '24000'));
     act(() => result.current.editor.change('horizon', '600'));
-    expect(result.current.api.document.plan.activeIncome?.growth.kind).toBe('fixed');
+    expect(result.current.api.document.plan.activeIncome?.[0]?.growth.kind).toBe('fixed');
     act(() => result.current.editor.cancel());
     act(() => result.current.editor.begin());
     expect(result.current.editor.draft?.incomeGrowth).toBe('fixed');
@@ -57,9 +57,9 @@ describe('计划草稿与正式方案', () => {
     act(() => result.current.editor.change('incomeGrowth', 'inflation'));
     act(() => result.current.editor.change('external', '24000'));
     act(() => result.current.editor.change('horizon', '600'));
-    expect(result.current.api.document.plan.activeIncome?.growth.kind).toBe('fixed');
+    expect(result.current.api.document.plan.activeIncome?.[0]?.growth.kind).toBe('fixed');
     act(() => { expect(result.current.editor.save()).toBe(true); });
-    expect(result.current.api.document.plan.activeIncome?.growth.kind).toBe('inflation');
+    expect(result.current.api.document.plan.activeIncome?.[0]?.growth.kind).toBe('inflation');
     expect(result.current.api.document.plan.externalIncome?.amount).toBe(24000);
     expect(result.current.api.document.plan.horizonMonths).toBe(600);
   });
@@ -185,7 +185,7 @@ describe('预测状态和结果契约', () => {
   ])('复现通胀 $inflation / 收入增长 $incomeGrowth 的前后日期', ({ inflation, incomeGrowth, before, after }) => {
     const document = fixtureDocument();
     document.plan.inflationRate = inflation;
-    document.plan.activeIncome!.growth = { kind: 'custom', annualRate: incomeGrowth };
+    document.plan.activeIncome![0]!.growth = { kind: 'custom', annualRate: incomeGrowth };
     const draft = projectDraft(null, document.plan);
     draft.flows[0]!.amount = '10000';
     document.project = parseProjectDraft(draft, document.plan).value;

@@ -214,7 +214,7 @@ export function useGoalEditor() {
       : rightPreset ? METRIC_PRESET_NAMES[rightPreset] : '自定义右侧指标';
     model = { title: side ? '选择指标口径' : '配置目标', targetName: draft.name, sections, canSave: side ? sideValid : !!parsed.value, saveLabel: side ? '确认口径' : '保存目标',
       ...(!side ? { equation: `${leftName} ≥ ${rightName} × ${draft.ratio || '待填写比例'}` } : {}),
-      ...(preview ? { preview: preview.hero, rows: preview.rows } : {}), ...(submitError || parsed.error ? { error: submitError ?? parsed.error } : {}) };
+      ...(preview ? { preview: preview.hero, rows: preview.rows, notices: preview.notices } : {}), ...(submitError || parsed.error ? { error: submitError ?? parsed.error } : {}) };
   }
   return { model, draft, side, isNew, begin, change, enterSide, cancelSide, confirmSide, save, duplicate, remove, makePrimary, cancel };
 }

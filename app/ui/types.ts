@@ -18,14 +18,31 @@ export interface SectionModel {
   collapsed?: boolean;
   layout?: 'compact' | 'growth';
 }
+export interface IncomeScheduleModel {
+  stages: { id: string; title: string; period: string; canRemove: boolean; fields: FieldModel[] }[];
+  canAdd: boolean;
+  note: string;
+}
+export interface IncomeScheduleProps extends ChangeProps {
+  model: IncomeScheduleModel;
+  /** 添加一个金额尚未填写的下一阶段，喵~ */
+  onAdd: Action;
+  /**
+   * 移除后续阶段并衔接剩余阶段，喵~
+   * @param id 编辑会话内的阶段标识，喵~
+   */
+  onRemove: (id: string) => void;
+}
 export interface EditorModel {
   title: string; note?: string; sections: SectionModel[]; error?: string;
   preview?: HeroModel; rows?: RowModel[]; targetName?: string; equation?: string; canSave: boolean; saveLabel?: string;
+  notices?: string[];
 }
 export interface OverviewModel {
   empty: boolean; noGoals: boolean; basis: string; basisLabel: string; title: string; titleHelp: string;
   hero: HeroModel; target: string; coverage: string; progress: number | null;
-  coreMetrics: { fieldId: PlanFieldId; label: string; value: string; unit: string }[];
+  coreMetrics: { fieldId: PlanFieldId; label: string; value: string; unit: string; note?: string }[];
+  notices?: string[];
   gap: { label: string; value: string; unit: string; tone: Tone };
   balances: { label: string; value: string; unit: string; tone: Tone }[];
   projected: { title: string; value: string; note: string };
@@ -34,6 +51,7 @@ export interface OverviewModel {
 export interface EvaluationModel {
   hero: HeroModel; rows: RowModel[]; impactRows: RowModel[]; impactHero: HeroModel | null;
   comparisonNote: string; basis: string; basisLabel: string; canChangeBasis: boolean; error?: string;
+  notices?: string[];
 }
 
 export interface ChangeProps {

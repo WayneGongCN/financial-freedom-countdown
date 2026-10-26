@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { calculateMilestones, compareProject, describeMetric, evaluateGoal, convertBasis, type FinanceDocument, type MetricContext, type GoalForecast, type Project, type ProjectComparison } from '../../src/index';
+import { calculateMilestones, compareProject, describeMetric, evaluateGoal, convertBasis, type Goal, type Plan, type Projection, type FinanceDocument, type MetricContext, type GoalForecast, type Project, type ProjectComparison } from '../../src/index';
 import { forecastHero, forecastText, monthAt, monthLabel, numberText, shownMetric } from '../model/format';
 import type { EvaluationModel, OverviewModel, RowModel } from '../ui/types';
 
@@ -34,6 +34,33 @@ function overviewDisplaySettings(document: FinanceDocument) {
     : { basis: 'real' as const, basisLabel: `购买力基准 · ${monthLabel(document.plan.baseMonth)}` };
 }
 
+/** 判断目标门槛是否会受已配置的收入阶段变化影响，喵~ */
+function hasChangingIncomeThreshold(plan: Plan, goal?: Goal): boolean {
+  return !!(goal?.right.kind === 'metric' && goal.right.metric.kind === 'flow' && goal.right.metric.components.includes('active-income')
+    && plan.activeIncome?.some((stage) => stage.durationMonths !== null));
+}
+
+/** 说明收入门槛变化与期内资金不足，保留首次达成日期，喵~ */
+export function resultNotices(plan: Plan, projection: Projection, goal?: Goal, label = ''): string[] {
+  const notices: string[] = [];
+  if (hasChangingIncomeThreshold(plan, goal)) {
+    notices.push('收入变化会影响比较门槛；达成收入比较目标不代表持续覆盖支出。');
+  }
+  if (projection.status === 'insolvent' && projection.issue && projection.issue.month <= plan.horizonMonths) {
+    notices.push(`${label}预测期内第 ${projection.issue.month} 月资金不足，不继续模拟借款。`);
+  }
+  return notices;
+}
+
+/** 用方案基准月的阶段信息说明收入期限，不按打开日期滚动，喵~ */
+function incomeSummary(plan: Plan): string | undefined {
+  const stages = plan.activeIncome;
+  if (!stages) return undefined;
+  if (stages.length > 1) return `共 ${stages.length} 个阶段`;
+  const months = stages[0]!.durationMonths;
+  return months === null ? undefined : `持续 ${months % 12 === 0 ? `${months / 12} 年` : `${months} 个月`}后停止`;
+}
+
 /** 将基准预测转换为展示数据，不因切换显示币值改变日期，喵~ */
 export function overviewModel(document: FinanceDocument, calculated: CalculatedResults): OverviewModel {
   const { plan } = document;
@@ -51,7 +78,7 @@ export function overviewModel(document: FinanceDocument, calculated: CalculatedR
   const isCapital = primary?.left.kind === 'assets';
   return {
     empty: plan.currentExpenses === null && plan.initialAssets === null, noGoals: !primary,
-    ...display,
+    ...display, notices: resultNotices(plan, baseline.projection, primary),
     title: primary?.name ?? '设置你的自由目标', titleHelp: primary?.right.kind === 'metric' && primary.right.metric.kind === 'required-capital' ? 'withdrawal-rate' : 'goal-amount-basis',
     hero, target: `当前目标 ${numberText(target === null ? null : target / 10000)} ${unit}`,
     coverage: coverage === null ? '进度待补充' : `已完成 ${numberText(coverage * 100, 1)}%`, progress: coverage === null ? null : Math.max(0, Math.min(100, coverage * 100)),
@@ -63,14 +90,14 @@ export function overviewModel(document: FinanceDocument, calculated: CalculatedR
           : display.basisLabel },
     coreMetrics: [
       { fieldId: 'assets', label: '当前可投资资产', value: numberText(plan.initialAssets === null ? null : plan.initialAssets / 10000), unit: '万元' },
-      { fieldId: 'income', label: '年收入', value: numberText(plan.activeIncome === null ? null : plan.activeIncome.amount / 10000), unit: '万元/年' },
+      { fieldId: 'income', label: '年收入', value: numberText(plan.activeIncome === null ? null : plan.activeIncome[0]!.amount / 10000), unit: '万元/年', note: incomeSummary(plan) },
       { fieldId: 'expenses', label: '年支出', value: numberText(plan.currentExpenses === null ? null : plan.currentExpenses.amount / 10000), unit: '万元/年' },
       { fieldId: 'returnRate', label: '年化总收益率', value: numberText(plan.investmentReturn === null ? null : plan.investmentReturn.annualRate * 100), unit: '%' },
       { fieldId: 'inflation', label: '通胀率', value: numberText(plan.inflationRate === null ? null : plan.inflationRate * 100), unit: '%' },
     ],
     milestones: baseline.goals.filter((item) => item.goalId !== primary?.id).map((item) => {
       const goal = document.goals.find((g) => g.id === item.goalId)!;
-      return { id: goal.id, title: goal.name, value: forecastText(item), rule: `${describeMetric(goal.left)} / ${goal.right.kind === 'metric' ? describeMetric(goal.right.metric) : goal.right.basis === 'real' ? '保持基准月购买力' : '固定名义金额'}` };
+      return { id: goal.id, title: goal.name, value: forecastText(item), rule: `${describeMetric(goal.left)} / ${goal.right.kind === 'metric' ? describeMetric(goal.right.metric) : goal.right.basis === 'real' ? '保持基准月购买力' : '固定名义金额'}${hasChangingIncomeThreshold(plan, goal) ? ' · 收入变化会影响比较门槛' : ''}` };
     }),
   };
 }
@@ -84,6 +111,8 @@ export function evaluationModel(document: FinanceDocument, comparison: ProjectCo
   if (!comparison || draftError) return base;
   const result = comparison.goals.find((goal) => goal.goalId === document.preferences.primaryGoalId);
   const impact = comparison.impact;
+  const primary = document.goals.find((goal) => goal.id === document.preferences.primaryGoalId);
+  base.notices = [...new Set([...resultNotices(document.plan, comparison.baseline, primary, '基准计划：'), ...resultNotices(document.plan, comparison.scenario, primary, '项目后：')])];
   if (result) {
     const delay = result.delayMonths;
     base.hero = delay === null ? { label: '预计影响', value: '—', note: `基准：${forecastText(result.baseline)}；项目后：${forecastText(result.scenario)}。${result.scenario.reason ?? ''}` }
@@ -129,8 +158,9 @@ export function useFinanceResults(document: FinanceDocument, project: Project | 
 }
 
 /** 为编辑器返回独立草稿预测，不更新正式文档，喵~ */
-export function previewGoal(document: FinanceDocument, id: string): { hero: ReturnType<typeof forecastHero>; rows: RowModel[]; targetName: string } {
+export function previewGoal(document: FinanceDocument, id: string): { hero: ReturnType<typeof forecastHero>; rows: RowModel[]; targetName: string; notices: string[] } {
   const goal = document.goals.find((item) => item.id === id);
-  const forecast: GoalForecast | undefined = goal ? calculateMilestones(document.plan, [goal]).goals[0] : undefined;
-  return { hero: { ...forecastHero(forecast), label: '按此草稿预计还需' }, targetName: goal?.name ?? '未选择目标', rows: forecast ? [{ label: '当前目标', value: `${numberText(shownMetric(forecast.current.right, document.plan, overviewDisplaySettings(document).basis))} ${forecast.current.right.status === 'available' && forecast.current.right.unit === 'annual-flow' ? '元/年' : '元'}` }] : [] };
+  const result = goal ? calculateMilestones(document.plan, [goal]) : undefined;
+  const forecast: GoalForecast | undefined = result?.goals[0];
+  return { hero: { ...forecastHero(forecast), label: '按此草稿预计还需' }, targetName: goal?.name ?? '未选择目标', notices: result ? resultNotices(document.plan, result.projection, goal) : [], rows: forecast ? [{ label: '当前目标', value: `${numberText(shownMetric(forecast.current.right, document.plan, overviewDisplaySettings(document).basis))} ${forecast.current.right.status === 'available' && forecast.current.right.unit === 'annual-flow' ? '元/年' : '元'}` }] : [] };
 }

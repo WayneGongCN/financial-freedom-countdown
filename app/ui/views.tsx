@@ -1,7 +1,8 @@
 import { Fragment, useEffect, useRef } from 'react';
-import type { Action, ChangeProps, EditorModel, EvaluationModel, FieldModel, HelpProps, OverviewModel, PlanFieldId, RowModel, SectionModel } from './types';
+import type { Action, ChangeProps, EditorModel, EvaluationModel, FieldModel, HelpProps, IncomeScheduleProps, OverviewModel, PlanFieldId, RowModel, SectionModel } from './types';
 import { Button, ChoiceGroup, Disclosure, FormField, HelpLink, HeroValue, KeyValueRow, MetricValue, Notice, ProgressBar, SectionHeader } from './primitives';
 import s from './ui.module.css';
+import { IncomeScheduleEditor } from './IncomeScheduleEditor';
 import { GuideContent, type GuideTopic } from './SeoContent';
 
 interface BasisProps {
@@ -41,8 +42,9 @@ export function OverviewView({ model, initialField, initialTarget, onInitialExpe
   if (model.empty) return <div className={s.content}><h2 className={s.title}>离自由，还有多远？</h2><FormField field={initialField} onChange={(_id, value) => onInitialExpense(value)} /><HeroValue label="按当前生活预算所需资本" value={initialTarget} unit="万元" /><SectionHeader title="年支出 / 4%"><HelpLink href="/guide#withdrawal-rate" onClick={() => onHelp('withdrawal-rate')}>4% 法则 ↗</HelpLink></SectionHeader><p className={s.caption}>先按当前生活预算估算，提取率和目标口径均可调整。</p><hr className={s.divider} /><h3 className={s.sectionTitle}>再补充一点信息，看看还需要多久</h3><Button onClick={() => onEditPlan()}>填写我的计划</Button><p className={s.caption}>数据保存在当前浏览器，无需注册。</p><Notice><HeroValue label="预计还需" value="—" /><p className={s.caption}>填写当前资产、收入与长期假设后预测时间。</p></Notice></div>;
   return <div className={s.content}>
     <SectionHeader title={<button className={s.sectionTitle} onClick={() => model.noGoals ? onAddGoal() : onEditGoal()}>{model.title}</button>}><HelpLink href={`/guide#${model.titleHelp}`} onClick={() => onHelp(model.titleHelp)}>{model.titleHelp === 'withdrawal-rate' ? '4% 法则 ↗' : '口径说明 ↗'}</HelpLink></SectionHeader>
-    <div className={s.coreMetrics} aria-label="计划核心指标">{model.coreMetrics.map((metric) => <Fragment key={metric.fieldId}><button type="button" className={`${s.coreMetric} ${metric.fieldId === 'assets' ? s.assetMetric : ''}`} onClick={() => onEditPlan(metric.fieldId)}><span className={s.caption}>{metric.label}</span><span className={s.metricNumber}><strong>{metric.value}</strong><span className={s.caption}>{metric.unit}</span></span></button>{metric.fieldId === 'assets' && <div className={`${s.coreMetric} ${s.gapMetric}`} data-goal-gap><span className={s.caption}>{model.gap.label}</span><span className={s.metricNumber}><strong className={s[model.gap.tone]}>{model.gap.value}</strong><span className={s.caption}>{model.gap.unit}</span></span></div>}</Fragment>)}</div>
+    <div className={s.coreMetrics} aria-label="计划核心指标">{model.coreMetrics.map((metric) => <Fragment key={metric.fieldId}><button type="button" className={`${s.coreMetric} ${metric.fieldId === 'assets' ? s.assetMetric : ''}`} onClick={() => onEditPlan(metric.fieldId)}><span className={s.caption}>{metric.label}</span><span className={s.metricNumber}><strong>{metric.value}</strong><span className={s.caption}>{metric.unit}</span></span>{metric.note && <span className={s.caption}>{metric.note}</span>}</button>{metric.fieldId === 'assets' && <div className={`${s.coreMetric} ${s.gapMetric}`} data-goal-gap><span className={s.caption}>{model.gap.label}</span><span className={s.metricNumber}><strong className={s[model.gap.tone]}>{model.gap.value}</strong><span className={s.caption}>{model.gap.unit}</span></span></div>}</Fragment>)}</div>
     <section className={s.forecastGrid} aria-label="达成预测"><div className={s.group}><p className={s.heroLabel}>{model.projected.title}</p><p className={s.subvalue}>{model.projected.value}</p><p className={s.caption}>{model.projected.note}</p></div><HeroValue {...model.hero} /></section>
+    {model.notices?.map((notice) => <Notice key={notice}><p className={s.caption}>{notice}</p></Notice>)}
     <div className={s.progressGroup}><KeyValueRow label={model.target} value={model.coverage} />{model.progress !== null && <ProgressBar value={model.progress} label="主目标完成进度" />}</div>
     {model.balances.length > 0 && <div className={s.balances}>{model.balances.map((balance) => <MetricValue key={balance.label} {...balance} />)}</div>}
     <SectionHeader title="里程碑"><HelpLink onClick={onAddGoal}>＋ 添加</HelpLink></SectionHeader>
@@ -79,12 +81,13 @@ export function EditorPreview({ model }: { model: EditorModel }) {
     {model.targetName && <p className={s.caption}>{model.targetName}</p>}
     <HeroValue {...(model.preview ?? { label: '按此草稿预计还需', value: '—', note: model.error ?? '补充计划信息后可预测。' })} />
     {model.rows?.map((row) => <KeyValueRow key={row.label} {...row} />)}
+    {model.notices?.map((notice) => <p key={notice} className={s.caption}>{notice}</p>)}
     <p className={s.caption}>草稿未保存 · 确认后生效</p>
   </section>;
 }
 
 /** 展示可滚动的编辑字段与比较规则，预测由面板固定区域承载，喵~ */
-export function PlanEditorView({ model, targetField, active = false, ...actions }: Omit<SectionProps, 'sections'> & { model: EditorModel; targetField?: PlanFieldId; active?: boolean }) {
+export function PlanEditorView({ model, targetField, active = false, incomeSchedule, ...actions }: Omit<SectionProps, 'sections'> & { model: EditorModel; targetField?: PlanFieldId; active?: boolean; incomeSchedule?: IncomeScheduleProps }) {
   const root = useRef<HTMLDivElement>(null);
   const located = useRef(false);
   /** 弹层显示后只滚动表单并短暂突出目标字段，避免唤起软键盘或打断说明往返位置，喵~ */
@@ -106,7 +109,7 @@ export function PlanEditorView({ model, targetField, active = false, ...actions 
     return () => { cancelAnimationFrame(frame); clearTimeout(timer); target?.removeAttribute('data-highlighted'); };
   }, [active, targetField]);
   return <div ref={root} className={s.stack}>{model.note && <p className={s.caption}>{model.note}</p>}{model.equation && <p className={s.equation}>{model.equation}</p>}
-    {model.error && <Notice alert><p className={s.error}>{model.error}</p></Notice>}<EditorSections sections={model.sections} {...actions} /></div>;
+    {model.error && <Notice alert><p className={s.error}>{model.error}</p></Notice>}{incomeSchedule ? <><EditorSections sections={model.sections.slice(0, 1)} {...actions} /><IncomeScheduleEditor {...incomeSchedule} /><EditorSections sections={model.sections.slice(1)} {...actions} /></> : <EditorSections sections={model.sections} {...actions} />}</div>;
 }
 
 /** 目标视图复用编辑布局但保持独立的业务容器入口，喵~ */
@@ -137,6 +140,7 @@ export function EvaluationView({ model, sections, timingRows, canAdd, onChange, 
     <div className={s.row}><HelpLink onClick={onAddIncome}>{canAdd ? '＋ 添加额外收入' : '已达到现金流上限'}</HelpLink><HelpLink onClick={onAddExpense}>＋ 添加支出</HelpLink></div>
     <hr className={s.divider} />
     {model.error && <Notice alert><p className={s.caption}>{model.error}</p></Notice>}
+    {model.notices?.map((notice) => <Notice key={notice}><p className={s.caption}>{notice}</p></Notice>)}
     {timingRows.map((row) => <KeyValueRow key={row.label} {...row} />)}
     <HeroValue {...model.hero} />{model.rows.map((row) => <KeyValueRow key={row.label} {...row} />)}
     <p className={s.caption}>当前金额按方案基准月计价。试算不会改变你的基础计划。</p>

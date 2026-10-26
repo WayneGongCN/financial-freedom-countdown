@@ -4,12 +4,12 @@ import { amountGoal, flow, freedomGoal, plan, project } from './fixtures.js';
 
 describe('消费与增收的两条路径', () => {
   it.each([[0, 0, 117, 118], [0.03, 0, 185, 186], [0.03, 0.03, 145, 146]])('回归示例：通胀 %s、工资增长 %s', (inflation, growth, before, after) => {
-    const p = plan({ inflationRate: inflation, activeIncome: { amount: 240000, growth: { kind: 'custom', annualRate: growth } } });
+    const p = plan({ inflationRate: inflation, activeIncome: [{ amount: 240000, growth: { kind: 'custom', annualRate: growth }, durationMonths: null }] });
     const result = compareProject(p, [freedomGoal()], project(flow()));
     expect(result.goals[0]).toMatchObject({ baseline: { firstMonth: before }, scenario: { firstMonth: after }, delayMonths: 1, targetChangeAtReference: 0 });
   });
   it('第 145 月本金、名义复利与购买力差额对账', () => {
-    const p = plan({ inflationRate: 0.03, activeIncome: { amount: 240000, growth: { kind: 'inflation' } } });
+    const p = plan({ inflationRate: 0.03, activeIncome: [{ amount: 240000, growth: { kind: 'inflation' }, durationMonths: null }] });
     const result = compareProject(p, [freedomGoal()], project(flow()));
     expect(result.impact.status).toBe('available');
     if (result.impact.status !== 'available') return;
