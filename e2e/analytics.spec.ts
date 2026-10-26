@@ -21,6 +21,8 @@ test('生产 GA 页面去重、核心字段保存和评估埋点不包含财务�
   await page.getByLabel('消费金额', { exact: true }).fill('12345');
   await expect.poll(async () => (await commands(page)).filter(([, name]) => name === 'evaluation_run').length).toBe(1);
   await page.getByRole('button', { name: '总览', exact: true }).click();
+  await expect(page).toHaveURL(/\/$/);
+  await expect.poll(async () => (await commands(page)).filter(([, name]) => name === 'page_view').length).toBe(3);
   await page.goBack();
   await expect.poll(async () => (await commands(page)).filter(([, name]) => name === 'evaluation_open').length).toBe(2);
   const events = await commands(page);
