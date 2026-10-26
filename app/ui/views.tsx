@@ -2,6 +2,7 @@ import { Fragment, useEffect, useRef } from 'react';
 import type { Action, ChangeProps, EditorModel, EvaluationModel, FieldModel, HelpProps, OverviewModel, PlanFieldId, RowModel, SectionModel } from './types';
 import { Button, ChoiceGroup, Disclosure, FormField, HelpLink, HeroValue, KeyValueRow, MetricValue, Notice, ProgressBar, SectionHeader } from './primitives';
 import s from './ui.module.css';
+import { GuideContent, type GuideTopic } from './SeoContent';
 
 interface BasisProps {
   /**
@@ -37,9 +38,9 @@ export function OverviewView({ model, initialField, initialTarget, onInitialExpe
   /** 打开消费评估，喵~ */
   onEvaluate: Action;
 }) {
-  if (model.empty) return <div className={s.content}><h2 className={s.title}>离自由，还有多远？</h2><FormField field={initialField} onChange={(_id, value) => onInitialExpense(value)} /><HeroValue label="按当前生活预算所需资本" value={initialTarget} unit="万元" /><SectionHeader title="年支出 / 4%"><HelpLink onClick={() => onHelp('withdrawal-rate')}>4% 法则 ↗</HelpLink></SectionHeader><p className={s.caption}>先按当前生活预算估算，提取率和目标口径均可调整。</p><hr className={s.divider} /><h3 className={s.sectionTitle}>再补充一点信息，看看还需要多久</h3><Button onClick={() => onEditPlan()}>填写我的计划</Button><p className={s.caption}>数据保存在当前浏览器，无需注册。</p><Notice><HeroValue label="预计还需" value="—" /><p className={s.caption}>填写当前资产、收入与长期假设后预测时间。</p></Notice></div>;
+  if (model.empty) return <div className={s.content}><h2 className={s.title}>离自由，还有多远？</h2><FormField field={initialField} onChange={(_id, value) => onInitialExpense(value)} /><HeroValue label="按当前生活预算所需资本" value={initialTarget} unit="万元" /><SectionHeader title="年支出 / 4%"><HelpLink href="/guide#withdrawal-rate" onClick={() => onHelp('withdrawal-rate')}>4% 法则 ↗</HelpLink></SectionHeader><p className={s.caption}>先按当前生活预算估算，提取率和目标口径均可调整。</p><hr className={s.divider} /><h3 className={s.sectionTitle}>再补充一点信息，看看还需要多久</h3><Button onClick={() => onEditPlan()}>填写我的计划</Button><p className={s.caption}>数据保存在当前浏览器，无需注册。</p><Notice><HeroValue label="预计还需" value="—" /><p className={s.caption}>填写当前资产、收入与长期假设后预测时间。</p></Notice></div>;
   return <div className={s.content}>
-    <SectionHeader title={<button className={s.sectionTitle} onClick={() => model.noGoals ? onAddGoal() : onEditGoal()}>{model.title}</button>}><HelpLink onClick={() => onHelp(model.titleHelp)}>{model.titleHelp === 'withdrawal-rate' ? '4% 法则 ↗' : '口径说明 ↗'}</HelpLink></SectionHeader>
+    <SectionHeader title={<button className={s.sectionTitle} onClick={() => model.noGoals ? onAddGoal() : onEditGoal()}>{model.title}</button>}><HelpLink href={`/guide#${model.titleHelp}`} onClick={() => onHelp(model.titleHelp)}>{model.titleHelp === 'withdrawal-rate' ? '4% 法则 ↗' : '口径说明 ↗'}</HelpLink></SectionHeader>
     <div className={s.coreMetrics} aria-label="计划核心指标">{model.coreMetrics.map((metric) => <Fragment key={metric.fieldId}><button type="button" className={`${s.coreMetric} ${metric.fieldId === 'assets' ? s.assetMetric : ''}`} onClick={() => onEditPlan(metric.fieldId)}><span className={s.caption}>{metric.label}</span><span className={s.metricNumber}><strong>{metric.value}</strong><span className={s.caption}>{metric.unit}</span></span></button>{metric.fieldId === 'assets' && <div className={`${s.coreMetric} ${s.gapMetric}`} data-goal-gap><span className={s.caption}>{model.gap.label}</span><span className={s.metricNumber}><strong className={s[model.gap.tone]}>{model.gap.value}</strong><span className={s.caption}>{model.gap.unit}</span></span></div>}</Fragment>)}</div>
     <section className={s.forecastGrid} aria-label="达成预测"><div className={s.group}><p className={s.heroLabel}>{model.projected.title}</p><p className={s.subvalue}>{model.projected.value}</p><p className={s.caption}>{model.projected.note}</p></div><HeroValue {...model.hero} /></section>
     <div className={s.progressGroup}><KeyValueRow label={model.target} value={model.coverage} />{model.progress !== null && <ProgressBar value={model.progress} label="主目标完成进度" />}</div>
@@ -66,7 +67,7 @@ export function EditorSections({ sections, onChange, onHelp, onStep }: SectionPr
     const fields = section.fields.map((field) => section.id === 'core-controls' ? <div key={field.id} className={s.planField} data-plan-field={field.id}><FormField field={field} onChange={onChange} /></div> : <FormField key={field.id} field={field} onChange={onChange} />);
     const content = <>{section.layout === 'growth' ? <div className={s.growthFields}>{fields}</div> : fields}
       {section.note && <p className={s.caption}>{section.note}</p>}{section.destination && onStep && <button type="button" className={s.assumptions} onClick={() => onStep(section.destination!)}><KeyValueRow label={section.title ?? '高级设置'} value={`${section.summary ?? ''} ›`} /></button>}
-      {section.help && <HelpLink onClick={() => onHelp(section.help!)}>说明 ↗</HelpLink>}</>;
+      {section.help && <HelpLink href={`/guide#${section.help!}`} onClick={() => onHelp(section.help!)}>说明 ↗</HelpLink>}</>;
     return section.collapsed ? <Disclosure key={section.id} title={section.title ?? '高级设置'}>{content}</Disclosure>
       : <section key={section.id} aria-label={section.title} className={section.layout ? s.compactSection : section.fields.some((field) => field.slider) ? s.coreControls : s.stack}>{section.title && !section.destination && section.layout !== 'growth' && !(section.layout === 'compact' && section.fields[0]?.kind === 'select') && (section.layout === 'compact' ? <h3 className={s.compactTitle}>{section.title}</h3> : <SectionHeader title={section.title} />)}{content}</section>;
   })}</>;
@@ -131,7 +132,7 @@ export function EvaluationView({ model, sections, timingRows, canAdd, onChange, 
   return <div className={s.content}><h2 className={s.title}>这笔消费，值得吗？</h2>
     {sections.map((section, index) => <section key={section.id} className={s.stack}>{index > 0 && <SectionHeader title={section.title ?? ''}><HelpLink onClick={() => onRemove(section.id)}>移除</HelpLink></SectionHeader>}
       {section.fields.slice(0, 2).map((field) => <FormField key={field.id} field={field} onChange={onChange} />)}
-      <Disclosure title="时间、增长与收益设置"><p className={s.caption}>每笔现金流独立设置，金额按实际发生月份计入。</p>{section.fields.slice(2).map((field) => <FormField key={field.id} field={field} onChange={onChange} />)}<HelpLink onClick={() => onHelp('growth-rules')}>报价与增长规则 ↗</HelpLink></Disclosure>
+      <Disclosure title="时间、增长与收益设置"><p className={s.caption}>每笔现金流独立设置，金额按实际发生月份计入。</p>{section.fields.slice(2).map((field) => <FormField key={field.id} field={field} onChange={onChange} />)}<HelpLink href="/guide#growth-rules" onClick={() => onHelp('growth-rules')}>报价与增长规则 ↗</HelpLink></Disclosure>
     </section>)}
     <div className={s.row}><HelpLink onClick={onAddIncome}>{canAdd ? '＋ 添加额外收入' : '已达到现金流上限'}</HelpLink><HelpLink onClick={onAddExpense}>＋ 添加支出</HelpLink></div>
     <hr className={s.divider} />
@@ -140,18 +141,17 @@ export function EvaluationView({ model, sections, timingRows, canAdd, onChange, 
     <HeroValue {...model.hero} />{model.rows.map((row) => <KeyValueRow key={row.label} {...row} />)}
     <p className={s.caption}>当前金额按方案基准月计价。试算不会改变你的基础计划。</p>
     <Disclosure title="金额影响"><div className={s.group}>{model.canChangeBasis && <ChoiceGroup label="评估金额显示口径" value={model.basis} options={basisOptions} onSelect={onBasisChange} />}<p className={s.caption}>{model.basisLabel}</p></div>
-      {model.impactRows.map((row) => <KeyValueRow key={row.label} {...row} />)}{model.impactHero && <HeroValue {...model.impactHero} />}<HelpLink onClick={() => onHelp('impact-decomposition')}>金额影响说明 ↗</HelpLink></Disclosure>
-    <SectionHeader title="对照：当前计划"><HelpLink onClick={() => onHelp('comparison-baseline')}>说明 ↗</HelpLink></SectionHeader><p className={s.caption}>{model.comparisonNote}</p>
+      {model.impactRows.map((row) => <KeyValueRow key={row.label} {...row} />)}{model.impactHero && <HeroValue {...model.impactHero} />}<HelpLink href="/guide#impact-decomposition" onClick={() => onHelp('impact-decomposition')}>金额影响说明 ↗</HelpLink></Disclosure>
+    <SectionHeader title="对照：当前计划"><HelpLink href="/guide#comparison-baseline" onClick={() => onHelp('comparison-baseline')}>说明 ↗</HelpLink></SectionHeader><p className={s.caption}>{model.comparisonNote}</p>
     <Button secondary onClick={() => onEditPlan()}>调整当前计划</Button><HelpLink onClick={onClear}>重新试算</HelpLink>
   </div>;
 }
 
-export interface GuideTopic { id: string; title: string; paragraphs: string[] }
+export type { GuideTopic } from './SeoContent';
 /** 渲染具有稳定锚点的口径说明正文，喵~ */
 export function GuideView({ topics, active, onHelp }: HelpProps & { topics: GuideTopic[]; active: string }) {
   return <div className={s.content}><p className={s.caption}>{active ? '已定位到对应口径；返回后可继续原来的编辑。' : '了解每个数字的含义，再选择适合你的口径。'}</p>
-    <nav className={s.guideIndex} aria-label="口径目录">{topics.map((topic) => <a key={topic.id} href={`/guide#${topic.id}`} onClick={(event) => { event.preventDefault(); onHelp(topic.id); }}>{topic.title} ↗</a>)}</nav>
-    {topics.map((topic) => <section key={topic.id} id={topic.id} tabIndex={-1} className={s.guideSection}><h2>{topic.title}</h2>{topic.paragraphs.map((text) => <p key={text}>{text}</p>)}</section>)}
+    <GuideContent topics={topics} onHelp={onHelp} />
   </div>;
 }
 

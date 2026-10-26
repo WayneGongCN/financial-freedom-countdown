@@ -4,6 +4,7 @@ import { BrowserRouter } from 'react-router-dom';
 import { FinanceDocumentProvider } from './hooks/useFinanceDocument';
 import { FinanceApp } from './containers/FinanceApp';
 import './styles.css';
+import './seo.css';
 import { initAnalytics } from './analytics';
 
 initAnalytics('G-5ZPDR2VWBB', import.meta.env.PROD);
@@ -16,4 +17,7 @@ const storage = {
   /** 只删除指定应用键，喵~ */
   removeItem(key: string) { window.localStorage.removeItem(key); },
 };
-createRoot(document.getElementById('root')!).render(<StrictMode><BrowserRouter><FinanceDocumentProvider storage={storage}><FinanceApp /></FinanceDocumentProvider></BrowserRouter></StrictMode>);
+const root = document.getElementById('root')!;
+// 静态正文与客户端共用组件，挂载时替换公开外壳，喵~
+root.replaceChildren();
+createRoot(root).render(<StrictMode><BrowserRouter><FinanceDocumentProvider storage={storage}><FinanceApp /></FinanceDocumentProvider></BrowserRouter></StrictMode>);

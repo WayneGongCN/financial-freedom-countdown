@@ -1,6 +1,7 @@
 import { useEffect, useId, useRef, useState, type ReactNode, type RefObject } from 'react';
 import type { Action, ChangeProps, FieldModel, HeroModel, Option, RowModel, Tone } from './types';
 import s from './ui.module.css';
+import { followAppLink } from './SeoContent';
 
 interface ClickProps {
   /** 点击后通知容器执行对应动作，喵~ */
@@ -13,7 +14,8 @@ export function Button({ children, onClick, secondary = false, disabled = false 
 }
 
 /** 显示具有足够触控区域的辅助入口，喵~ */
-export function HelpLink({ children = '口径说明 ↗', onClick }: ClickProps & { children?: ReactNode }) {
+export function HelpLink({ children = '口径说明 ↗', onClick, href }: ClickProps & { children?: ReactNode; href?: string }) {
+  if (href) return <a className={s.link} href={href} onClick={event => followAppLink(event, onClick)}>{children}</a>;
   return <button type="button" className={s.link} onClick={onClick}>{children}</button>;
 }
 
@@ -135,7 +137,7 @@ export function BottomNav({ active, onSelect }: { active: string;
    */
   onSelect: (page: string) => void;
 }) {
-  return <nav className={s.nav} aria-label="主导航">{[{ id: '/', label: '总览' }, { id: '/evaluate', label: '评估' }].map((item) => <button key={item.id} type="button" aria-current={active === item.id ? 'page' : undefined} onClick={() => onSelect(item.id)}>{item.label}</button>)}</nav>;
+  return <nav className={s.nav} aria-label="主导航">{[{ id: '/', label: '总览' }, { id: '/evaluate', label: '评估' }].map((item) => <a key={item.id} href={item.id} aria-current={active === item.id ? 'page' : undefined} onClick={event => followAppLink(event, () => onSelect(item.id))}>{item.label}</a>)}</nav>;
 }
 
 /** 使用原生模态对话框提供焦点约束和关闭后的焦点恢复，喵~ */

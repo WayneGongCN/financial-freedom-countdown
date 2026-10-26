@@ -11,8 +11,8 @@ describe('GA transport', () => {
     const { initAnalytics, trackPage, trackEvent } = await import('../app/analytics');
     initAnalytics('G-TEST123', true, 'localhost');
     initAnalytics('G-TEST123', true, 'preview.vercel.app');
-    initAnalytics('G-TEST123', false, 'financial-freedom-countdown.vercel.app');
-    initAnalytics(undefined, true, 'financial-freedom-countdown.vercel.app');
+    initAnalytics('G-TEST123', false, 'freedom-countdown.waynegong.com');
+    initAnalytics(undefined, true, 'freedom-countdown.waynegong.com');
     trackPage('/'); trackEvent('plan_save');
     expect(window.dataLayer).toBeUndefined();
     expect(document.querySelector('script')).toBeNull();
@@ -20,8 +20,8 @@ describe('GA transport', () => {
   it('initializes once, queues events, deduplicates routes and strips queries and hashes', async () => {
     const { initAnalytics, trackPage, trackEvent } = await import('../app/analytics');
     window.history.replaceState({}, '', '/?goal=private-name#private-text');
-    initAnalytics('G-TEST123', true, 'financial-freedom-countdown.vercel.app');
-    initAnalytics('G-TEST123', true, 'financial-freedom-countdown.vercel.app');
+    initAnalytics('G-TEST123', true, 'freedom-countdown.waynegong.com');
+    initAnalytics('G-TEST123', true, 'freedom-countdown.waynegong.com');
     trackPage('/'); trackPage('/'); trackPage('/evaluate'); trackPage('/evaluate'); trackPage('/');
     trackEvent('plan_field_edit', { field_name: 'assets' });
     const commands = window.dataLayer!.map((args) => Array.from(args as unknown[]));
@@ -36,7 +36,7 @@ describe('GA transport', () => {
   });
   it('a failing analytics client never interrupts the app', async () => {
     const { initAnalytics, trackPage, trackEvent } = await import('../app/analytics');
-    initAnalytics('G-TEST123', true, 'financial-freedom-countdown.vercel.app');
+    initAnalytics('G-TEST123', true, 'freedom-countdown.waynegong.com');
     window.gtag = () => { throw new Error('blocked'); };
     expect(() => trackPage('/evaluate')).not.toThrow();
     expect(() => trackEvent('evaluation_clear')).not.toThrow();

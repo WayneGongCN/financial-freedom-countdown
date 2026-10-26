@@ -1,11 +1,13 @@
 import { useEffect, useLayoutEffect, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { trackPage } from '../analytics';
+import { updatePageSeo } from '../seo';
 
 /** 管理页面和面板路由，并在口径说明往返时恢复来源位置，喵~ */
 export function useFinanceNavigation() {
   const location = useLocation();
-  useEffect(() => { trackPage(location.pathname); }, [location.pathname]);
+  /** 路由切换后统一更新公开元信息和页面统计，喵~ */
+  useEffect(() => { updatePageSeo(location.pathname); trackPage(location.pathname); }, [location.pathname]);
   const navigate = useNavigate();
   const scrollRef = useRef<HTMLElement | null>(null);
   const positions = useRef<Record<string, number>>({});

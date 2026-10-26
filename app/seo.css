@@ -1,0 +1,15 @@
+.seo-content { padding: 24px; display: flex; flex-direction: column; gap: 16px; font-size: 14px; line-height: 26px; }
+.seo-content h2 { font-size: 18px; font-weight: 500; line-height: 28px; }
+.seo-content h3 { font-size: 16px; font-weight: 500; }
+.seo-content ol { padding-left: 22px; }
+.seo-content nav { display: flex; flex-direction: column; gap: 8px; }
+.seo-content a, .guide-index a { color: inherit; text-underline-offset: 4px; }
+.static-page { max-width: 480px; margin: auto; background: white; }
+.static-page header { padding: 24px 24px 0; }
+.static-page h1 { font-size: 20px; font-weight: 500; }
+.guide-index { display: flex; flex-direction: column; gap: 4px; }
+.guide-index a { font-size: 14px; line-height: 24px; padding: 10px 0; text-decoration: none; border-bottom: 1px solid var(--color-line); }
+.guide-section { scroll-margin-top: 16px; }
+.guide-section h2 { font-size: 18px; font-weight: 500; line-height: 28px; margin-bottom: 12px; }
+.guide-section p { font-size: 14px; line-height: 26px; white-space: pre-line; }
+@media (max-width: 350px) { .seo-content { padding-left: 16px; padding-right: 16px; } }
