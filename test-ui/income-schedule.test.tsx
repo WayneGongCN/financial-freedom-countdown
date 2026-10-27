@@ -81,7 +81,6 @@ describe('收入阶段编辑', () => {
     act(() => result.current.removeIncomeStage('incomeStage1'));
     expect(result.current.incomeSchedule!.stages[1]!.period).toBe('第 61 月起，不限期');
     expect(result.current.parsed.value!.activeIncome![1]).toEqual(document.plan.activeIncome[2]);
-    act(() => result.current.change('horizon', '1'));
     expect(result.current.parsed.value!.activeIncome).toHaveLength(2);
     act(() => result.current.cancel());
     expect(storage.values.get(DEFAULT_STORAGE_KEY)).toBe(original);
@@ -123,7 +122,7 @@ describe('收入阶段结果说明', () => {
   it('首次达成之后仍显示期内资金不足，额外窗口不足不冒称期内问题', () => {
     const document = fixtureDocument();
     document.plan = { ...document.plan, initialAssets: 1000, inflationRate: 0, horizonMonths: 12, investmentReturn: { annualRate: 0 },
-      activeIncome: [{ amount: 0, growth: { kind: 'fixed' }, durationMonths: 1 }], currentExpenses: { amount: 12000, growth: { kind: 'fixed' } } };
+      activeIncome: [{ amount: 0, growth: { kind: 'fixed' }, durationMonths: 1 }], currentExpenses: [{ amount: 12000, growth: { kind: 'fixed' }, durationMonths: null }] };
     document.goals = [{ id: 'target', name: '资产目标', left: { kind: 'assets', basis: 'nominal' }, right: { kind: 'amount', amount: 1000, unit: 'capital', basis: 'nominal' }, ratio: 1, comparison: 'scenario' }];
     document.preferences.primaryGoalId = 'target';
     const results = calculateResults(document, null);

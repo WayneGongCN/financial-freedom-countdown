@@ -18,13 +18,15 @@ export interface SectionModel {
   collapsed?: boolean;
   layout?: 'compact' | 'growth';
 }
-export interface IncomeScheduleModel {
-  stages: { id: string; title: string; period: string; canRemove: boolean; fields: FieldModel[] }[];
+export interface FlowScheduleModel {
+  title: string;
+  description: string;
+  stages: { id: string; title: string; period: string; calendar: string | null; canRemove: boolean; fields: FieldModel[] }[];
   canAdd: boolean;
   note: string;
 }
-export interface IncomeScheduleProps extends ChangeProps {
-  model: IncomeScheduleModel;
+export interface FlowScheduleProps extends ChangeProps {
+  model: FlowScheduleModel;
   /** 添加一个金额尚未填写的下一阶段，喵~ */
   onAdd: Action;
   /**

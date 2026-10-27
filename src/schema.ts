@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
-export const SCHEMA_VERSION = 3 as const;
-export const MODEL_VERSION = '3.0.0' as const;
+export const SCHEMA_VERSION = 4 as const;
+export const MODEL_VERSION = '4.0.0' as const;
 export const MAX_MONTHS = 1200;
 
 const amount = z.number().finite().min(0);
@@ -15,13 +15,18 @@ export const growthSchema = z.discriminatedUnion('kind', [
   z.strictObject({ kind: z.literal('custom'), annualRate: rate }),
 ]);
 export const annualFlowSchema = z.strictObject({ amount, growth: growthSchema });
-export const incomeStageSchema = annualFlowSchema.extend({
+export const flowStageSchema = annualFlowSchema.extend({
   durationMonths: z.number().int().min(1).max(MAX_MONTHS).nullable(),
 });
-export const incomeScheduleSchema = z.array(incomeStageSchema).min(1).superRefine((stages, ctx) => {
+export const flowScheduleSchema = z.array(flowStageSchema).min(1).superRefine((stages, ctx) => {
   stages.slice(0, -1).forEach((stage, index) => {
-    if (stage.durationMonths === null) ctx.addIssue({ code: 'custom', path: [index, 'durationMonths'], message: '只有最后一个收入阶段可以不限期' });
+    if (stage.durationMonths === null) ctx.addIssue({ code: 'custom', path: [index, 'durationMonths'], message: '只有最后一个阶段可以不限期' });
   });
+});
+export const expenseScheduleSchema = flowScheduleSchema.superRefine((stages, ctx) => {
+  if (stages.length > 0 && stages.at(-1)!.durationMonths !== null) {
+    ctx.addIssue({ code: 'custom', path: [stages.length - 1, 'durationMonths'], message: '最后一个支出阶段必须不限期' });
+  }
 });
 export const returnSchema = z.strictObject({
   annualRate: rate,
@@ -33,8 +38,8 @@ export const planSchema = z.strictObject({
   initialAssets: amount.nullable(),
   inflationRate: rate.nullable(),
   investmentReturn: returnSchema.nullable(),
-  activeIncome: incomeScheduleSchema.nullable(),
-  currentExpenses: annualFlowSchema.nullable(),
+  activeIncome: flowScheduleSchema.nullable(),
+  currentExpenses: expenseScheduleSchema.nullable(),
   externalIncome: annualFlowSchema.nullable(),
   retirementBudget: z.discriminatedUnion('kind', [
     z.strictObject({ kind: z.literal('current') }),
@@ -136,7 +141,7 @@ export const documentSchema = z.strictObject({
 
 export type Growth = z.infer<typeof growthSchema>;
 export type AnnualFlow = z.infer<typeof annualFlowSchema>;
-export type IncomeStage = z.infer<typeof incomeStageSchema>;
+export type FlowStage = z.infer<typeof flowStageSchema>;
 export type ReturnAssumption = z.infer<typeof returnSchema>;
 export type Plan = z.infer<typeof planSchema>;
 export type CashFlow = z.infer<typeof cashFlowSchema>;

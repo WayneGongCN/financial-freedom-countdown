@@ -38,7 +38,7 @@ describe('指标按依赖渐进计算', () => {
     }
   });
   it('未填写通胀不能冒充实际统计结果', () => {
-    const context = createMetricContext(plan({ inflationRate: null, currentExpenses: { amount: 120000, growth: { kind: 'fixed' } } }));
+    const context = createMetricContext(plan({ inflationRate: null, currentExpenses: [{ amount: 120000, growth: { kind: 'fixed' }, durationMonths: null }] }));
     expect(evaluateMetric(context, metricPreset('assets', 'real'), 12)).toMatchObject({ missingField: 'inflationRate' });
     expect(evaluateMetric(context, { kind: 'flow', basis: 'real', aggregation: 'next-12-months', components: ['inflation-adjustment'] })).toMatchObject({ missingField: 'inflationRate' });
   });
@@ -80,7 +80,7 @@ describe('指标组成与统计币值', () => {
   });
   it('投资亏损可以使总被动收入为负，不把亏损截成零', () => {
     const context = createMetricContext(plan({ investmentReturn: { annualRate: -0.1 },
-      activeIncome: [{ amount: 0, growth: { kind: 'fixed' }, durationMonths: null }], currentExpenses: { amount: 0, growth: { kind: 'fixed' } } }));
+      activeIncome: [{ amount: 0, growth: { kind: 'fixed' }, durationMonths: null }], currentExpenses: [{ amount: 0, growth: { kind: 'fixed' }, durationMonths: null }] }));
     expect(availableValue(evaluateMetric(context, metricPreset('passive-total')))!.value).toBeCloseTo(-60000, 6);
     expect(evaluateMetric(context, { kind: 'flow', basis: 'nominal', aggregation: 'annualized', components: ['investment-total', 'external-income'] })).toMatchObject({ value: -60000 });
   });
@@ -109,7 +109,7 @@ describe('指标组成与统计币值', () => {
     const context = createMetricContext(plan());
     expect(() => evaluateMetric(context, metricPreset('assets'), -1)).toThrow();
     expect(() => evaluateMetric(context, metricPreset('assets'), 1201)).toThrow();
-    expect(evaluateMetric(createMetricContext(plan({ currentExpenses: { amount: 1e308, growth: { kind: 'fixed' } } })), metricPreset('freedom-capital'))).toMatchObject({ status: 'unavailable', code: 'invalid' });
+    expect(evaluateMetric(createMetricContext(plan({ currentExpenses: [{ amount: 1e308, growth: { kind: 'fixed' }, durationMonths: null }] })), metricPreset('freedom-capital'))).toMatchObject({ status: 'unavailable', code: 'invalid' });
   });
   it('预算和年化节省不能超出真实支出', () => {
     const context = createMetricContext(plan(), project(flow({ kind: 'expense-saving', amount: 1000000, frequency: 'monthly' })));
@@ -138,7 +138,7 @@ describe('资本目标与里程碑', () => {
     expect(evaluateGoal(context, amountGoal(3000000, 'real'), 120).right).toMatchObject({ value: 3000000 * 1.03 ** 10 });
   });
   it('固定购买力目标需要通胀才能换算未来门槛', () => {
-    const context = createMetricContext(plan({ inflationRate: null, currentExpenses: { amount: 120000, growth: { kind: 'fixed' } } }));
+    const context = createMetricContext(plan({ inflationRate: null, currentExpenses: [{ amount: 120000, growth: { kind: 'fixed' }, durationMonths: null }] }));
     expect(evaluateGoal(context, amountGoal(3000000, 'real'), 1).status).toBe('unavailable');
   });
   it('同比通胀支出目标的实际金额稳定，显示不会双扣通胀', () => {
@@ -165,7 +165,7 @@ describe('资本目标与里程碑', () => {
   });
   it('已达成和零资本需求不产生除零进度', () => {
     expect(forecastGoal(createMetricContext(plan()), amountGoal(100)).firstMonth).toBe(0);
-    const context = createMetricContext(plan({ currentExpenses: { amount: 0, growth: { kind: 'fixed' } } }));
+    const context = createMetricContext(plan({ currentExpenses: [{ amount: 0, growth: { kind: 'fixed' }, durationMonths: null }] }));
     expect(evaluateGoal(context, freedomGoal())).toMatchObject({ status: 'met', coverage: null });
   });
   it('资本单位、年额窗口和统计币值必须兼容', () => {
@@ -228,7 +228,7 @@ describe('资本目标与里程碑', () => {
   });
 
   it('年化指标只读取所选现金流，资本目标忽略未选择的收入', () => {
-    const p = plan({ inflationRate: null, currentExpenses: { amount: 120000, growth: { kind: 'fixed' } } });
+    const p = plan({ inflationRate: null, currentExpenses: [{ amount: 120000, growth: { kind: 'fixed' }, durationMonths: null }] });
     const expenseContext = createMetricContext(p, project(flow({ startMonth: 0, frequency: 'monthly', growth: { kind: 'inflation' } })));
     expect(evaluateMetric(expenseContext, { kind: 'flow', basis: 'nominal', aggregation: 'annualized', components: ['active-income'] }, 1)).toMatchObject({ value: 240000 });
     const incomeContext = createMetricContext(p, project(flow({ kind: 'passive-income', frequency: 'monthly', growth: { kind: 'inflation' } })));

@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { calculateMilestones, compareProject, describeMetric, evaluateGoal, convertBasis, type Goal, type Plan, type Projection, type FinanceDocument, type MetricContext, type GoalForecast, type Project, type ProjectComparison } from '../../src/index';
+import { calculateMilestones, compareProject, describeMetric, evaluateGoal, convertBasis, type Goal, type FlowStage, type Plan, type Projection, type FinanceDocument, type MetricContext, type GoalForecast, type Project, type ProjectComparison } from '../../src/index';
 import { forecastHero, forecastText, monthAt, monthLabel, numberText, shownMetric } from '../model/format';
 import type { EvaluationModel, OverviewModel, RowModel } from '../ui/types';
 
@@ -52,9 +52,8 @@ export function resultNotices(plan: Plan, projection: Projection, goal?: Goal, l
   return notices;
 }
 
-/** 用方案基准月的阶段信息说明收入期限，不按打开日期滚动，喵~ */
-function incomeSummary(plan: Plan): string | undefined {
-  const stages = plan.activeIncome;
+/** 用方案基准月的阶段信息说明收支期限，不按打开日期滚动，喵~ */
+function scheduleSummary(stages: FlowStage[] | null): string | undefined {
   if (!stages) return undefined;
   if (stages.length > 1) return `共 ${stages.length} 个阶段`;
   const months = stages[0]!.durationMonths;
@@ -90,8 +89,8 @@ export function overviewModel(document: FinanceDocument, calculated: CalculatedR
           : display.basisLabel },
     coreMetrics: [
       { fieldId: 'assets', label: '当前可投资资产', value: numberText(plan.initialAssets === null ? null : plan.initialAssets / 10000), unit: '万元' },
-      { fieldId: 'income', label: '年收入', value: numberText(plan.activeIncome === null ? null : plan.activeIncome[0]!.amount / 10000), unit: '万元/年', note: incomeSummary(plan) },
-      { fieldId: 'expenses', label: '年支出', value: numberText(plan.currentExpenses === null ? null : plan.currentExpenses.amount / 10000), unit: '万元/年' },
+      { fieldId: 'income', label: '年收入', value: numberText(plan.activeIncome === null ? null : plan.activeIncome[0]!.amount / 10000), unit: '万元/年', note: scheduleSummary(plan.activeIncome) },
+      { fieldId: 'expenses', label: '年支出', value: numberText(plan.currentExpenses === null ? null : plan.currentExpenses[0]!.amount / 10000), unit: '万元/年', note: scheduleSummary(plan.currentExpenses) },
       { fieldId: 'returnRate', label: '年化总收益率', value: numberText(plan.investmentReturn === null ? null : plan.investmentReturn.annualRate * 100), unit: '%' },
       { fieldId: 'inflation', label: '通胀率', value: numberText(plan.inflationRate === null ? null : plan.inflationRate * 100), unit: '%' },
     ],

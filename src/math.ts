@@ -1,4 +1,4 @@
-import type { AnnualFlow, Growth, Plan } from './schema.js';
+import type { AnnualFlow, FlowStage, Growth, Plan } from './schema.js';
 
 export class MissingInputError extends Error {
   /** 标识具体缺失的财务输入，供调用方按需补全，喵~ */
@@ -54,9 +54,9 @@ export function annualValue(flow: AnnualFlow | null, plan: Plan, month: number, 
   return growAmount(input.amount, input.growth, plan, month);
 }
 
-/** 按阶段起点计算主动年收入，第零月仅提供当前水平，有限末段结束后归零，喵~ */
-export function activeIncomeAnnualAt(plan: Plan, month: number): number {
-  const stages = required(plan.activeIncome, 'activeIncome');
+/** 按各阶段起点计算年额，第零月仅提供当前水平，有限末段结束后归零，喵~ */
+export function scheduledAnnualAt(schedule: FlowStage[] | null, plan: Plan, month: number, field: string): number {
+  const stages = required(schedule, field);
   let start = 0;
   for (const stage of stages) {
     if (stage.durationMonths === null || month <= start + stage.durationMonths) {
@@ -65,6 +65,16 @@ export function activeIncomeAnnualAt(plan: Plan, month: number): number {
     start += stage.durationMonths;
   }
   return 0;
+}
+
+/** 读取指定月份的主动年收入，喵~ */
+export function activeIncomeAnnualAt(plan: Plan, month: number): number {
+  return scheduledAnnualAt(plan.activeIncome, plan, month, 'activeIncome');
+}
+
+/** 读取指定月份的基础年支出，喵~ */
+export function expensesAnnualAt(plan: Plan, month: number): number {
+  return scheduledAnnualAt(plan.currentExpenses, plan, month, 'currentExpenses');
 }
 
 /** 在同一时点转换显示币值，统计算法保持不变，喵~ */

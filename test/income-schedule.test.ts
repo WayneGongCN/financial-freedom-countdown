@@ -1,18 +1,18 @@
 import { describe, expect, it } from 'vitest';
 import {
   activeIncomeAnnualAt, calculateMilestones, compareProject, createDocument, createMetricContext, evaluateMetric,
-  exportDocument, importDocument, metricPreset, planSchema, simulatePlan, type IncomeStage, type Plan,
+  exportDocument, importDocument, metricPreset, planSchema, simulatePlan, type FlowStage, type Plan,
 } from '../src/index.js';
 import { flow, plan, project } from './fixtures.js';
 
 /** 使用零收益和零支出隔离阶段工资的真实现金流，喵~ */
-function scheduled(stages: IncomeStage[] | null, overrides: Partial<Plan> = {}): Plan {
+function scheduled(stages: FlowStage[] | null, overrides: Partial<Plan> = {}): Plan {
   return plan({ initialAssets: 100000, inflationRate: 0, investmentReturn: { annualRate: 0 },
-    currentExpenses: { amount: 0, growth: { kind: 'fixed' } }, activeIncome: stages, ...overrides });
+    currentExpenses: [{ amount: 0, growth: { kind: 'fixed' }, durationMonths: null }], activeIncome: stages, ...overrides });
 }
 
 /** 创建固定金额阶段以表达合成收入场景，喵~ */
-function stage(amount: number, durationMonths: number | null): IncomeStage {
+function stage(amount: number, durationMonths: number | null): FlowStage {
   return { amount, durationMonths, growth: { kind: 'fixed' } };
 }
 
@@ -71,7 +71,7 @@ describe('主动收入阶段', () => {
   });
 
   it('工资结束后其他收入与支出继续，项目增收只在项目路径叠加一次', () => {
-    const p = scheduled([stage(240000, 1)], { externalIncome: { amount: 24000, growth: { kind: 'fixed' } }, currentExpenses: { amount: 12000, growth: { kind: 'fixed' } } });
+    const p = scheduled([stage(240000, 1)], { externalIncome: { amount: 24000, growth: { kind: 'fixed' } }, currentExpenses: [{ amount: 12000, growth: { kind: 'fixed' }, durationMonths: null }] });
     const pr = project(flow({ kind: 'active-income', amount: 3000, frequency: 'monthly', startMonth: 1 }));
     const comparison = compareProject(p, createDocument('2026-10').goals, pr);
     expect(comparison.baseline.rows[2]).toMatchObject({ activeIncome: 0, externalIncome: 2000, expenses: 1000, netCashFlow: 1000 });
@@ -80,7 +80,7 @@ describe('主动收入阶段', () => {
   });
 
   it('停薪不降低支出覆盖门槛，也不会因收入门槛归零自动达成', () => {
-    const p = scheduled([stage(120000, 1)], { currentExpenses: { amount: 12000, growth: { kind: 'fixed' } } });
+    const p = scheduled([stage(120000, 1)], { currentExpenses: [{ amount: 12000, growth: { kind: 'fixed' }, durationMonths: null }] });
     const context = createMetricContext(p);
     expect(evaluateMetric(context, metricPreset('freedom-capital'), 0)).toMatchObject({ value: 300000 });
     expect(evaluateMetric(context, metricPreset('freedom-capital'), 2)).toMatchObject({ value: 300000 });
@@ -90,7 +90,7 @@ describe('主动收入阶段', () => {
 
   it('失业期间资金不足即停止，不用未来再就业收入隐式借款', () => {
     const result = simulatePlan(scheduled([stage(0, 2), stage(240000, null)], {
-      initialAssets: 1000, currentExpenses: { amount: 12000, growth: { kind: 'fixed' } },
+      initialAssets: 1000, currentExpenses: [{ amount: 12000, growth: { kind: 'fixed' }, durationMonths: null }],
     }));
     expect(result).toMatchObject({ status: 'insolvent', issue: { month: 2 } });
     expect(result.rows).toHaveLength(3);

@@ -1,4 +1,4 @@
-import { annualValue, growAmount } from './math.js';
+import { annualValue, growAmount, scheduledAnnualAt } from './math.js';
 import { MAX_MONTHS, type CashFlow, type Plan, type Project } from './schema.js';
 
 export interface ProjectCash {
@@ -69,8 +69,9 @@ export function reserveSchedule(plan: Plan, project: Project | null): number[] {
 
 /** 计算候选月的长期生活预算与已生效外部收入，有限期项目另走准备金，喵~ */
 export function retirementAnnualAt(plan: Plan, project: Project | null, month: number, deductExternalIncome: boolean): { expenses: number; externalIncome: number } {
-  const flow = plan.retirementBudget.kind === 'current' ? plan.currentExpenses : plan.retirementBudget.flow;
-  let expenses = annualValue(flow, plan, month, 'retirementBudget');
+  let expenses = plan.retirementBudget.kind === 'current'
+    ? scheduledAnnualAt(plan.currentExpenses, plan, month, 'retirementBudget')
+    : annualValue(plan.retirementBudget.flow, plan, month, 'retirementBudget');
   let externalIncome = deductExternalIncome ? annualValue(plan.externalIncome, plan, month, 'externalIncome') : 0;
   for (const item of project?.cashFlows ?? []) {
     if (!item.continuesAfterFreedom || item.frequency === 'once' || item.endMonth !== null) continue;

@@ -4,8 +4,8 @@ import { createDocument, createPlan, METRIC_PRESET_NAMES, metricPreset, returnSc
 describe('新方案默认假设', () => {
   it('新文档预填 2% 通胀与 5% 年化总收益并使用名义金额', () => {
     const document = createDocument('2026-10');
-    expect(document.schemaVersion).toBe(3);
-    expect(document.modelVersion).toBe('3.0.0');
+    expect(document.schemaVersion).toBe(4);
+    expect(document.modelVersion).toBe('4.0.0');
     expect(document.plan.inflationRate).toBe(0.02);
     expect(document.preferences.displayBasis).toBe('nominal');
     expect(document.plan.investmentReturn).toEqual({ annualRate: 0.05 });

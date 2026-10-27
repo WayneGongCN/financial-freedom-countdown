@@ -12,7 +12,7 @@ for (const [inflation, incomeGrowth] of [[0, 0], [0.03, 0], [0.03, 0.03]]) {
     initialAssets: 600000, inflationRate: inflation,
     investmentReturn: { annualRate: 0.08 },
     activeIncome: [{ amount: 240000, growth: { kind: 'custom', annualRate: incomeGrowth }, durationMonths: null }],
-    currentExpenses: { amount: 120000, growth: { kind: 'inflation' } },
+    currentExpenses: [{ amount: 120000, growth: { kind: 'inflation' }, durationMonths: null }],
   });
   const result = compareProject(plan, goals, purchase);
   rows.push({ 通胀: inflation, 工资增长: incomeGrowth,

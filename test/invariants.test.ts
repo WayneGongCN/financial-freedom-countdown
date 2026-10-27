@@ -11,7 +11,7 @@ describe('跨模型不变量', () => {
       for (const investmentReturn of [-0.05, 0, 0.03, 0.12]) {
         const p = plan({ inflationRate: inflation, investmentReturn: { annualRate: investmentReturn }, horizonMonths: 240,
           activeIncome: [{ amount: 240000, growth: { kind: 'custom', annualRate: 0.01 }, durationMonths: null }],
-          currentExpenses: { amount: 60000, growth: { kind: 'inflation' } } });
+          currentExpenses: [{ amount: 60000, growth: { kind: 'inflation' }, durationMonths: null }] });
         const pr = project(flow({ startMonth: 13, amount: 1000, endMonth: 36, frequency: 'monthly', growth: { kind: 'custom', annualRate: 0.02 } }));
         const nominal = simulatePlan(p, pr);
         expect(nominal.status).toBe('complete');
@@ -27,7 +27,7 @@ describe('跨模型不变量', () => {
   });
   it('改变通胀不改变锁定总收益的纯资产路径，购买力随物价变化', () => {
     const base = plan({ inflationRate: 0, activeIncome: [{ amount: 0, growth: { kind: 'fixed' }, durationMonths: null }],
-      currentExpenses: { amount: 0, growth: { kind: 'fixed' } } });
+      currentExpenses: [{ amount: 0, growth: { kind: 'fixed' }, durationMonths: null }] });
     const reference = simulatePlan(base);
     const referenceDate = forecastGoal(createMetricContext(base), amountGoal(3000000)).firstMonth;
     for (const inflationRate of [-0.01, 0.03, 0.08]) {

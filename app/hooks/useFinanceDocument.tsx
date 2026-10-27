@@ -1,5 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useReducer, type ReactNode } from 'react';
-import { createDocument, DEFAULT_STORAGE_KEY, documentSchema, exportDocument, importDocument, saveDocument, type FinanceDocument, type StorageAdapter } from '../../src/index';
+import { createDocument, DEFAULT_STORAGE_KEY, MAX_MONTHS, documentSchema, exportDocument, importDocument, saveDocument, type FinanceDocument, type StorageAdapter } from '../../src/index';
 
 interface DocumentState { document: FinanceDocument; error: string | null; blocked: boolean; revision: number; savedRevision: number }
 type Event = { type: 'commit'; document: FinanceDocument; recover?: boolean } | { type: 'saved'; revision: number } | { type: 'failed'; error: string } | { type: 'retry' };
@@ -29,12 +29,17 @@ function currentMonth(): string {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
 }
 
+/** 应用统一使用固定预测期限，读取时仅更新内存，不自动覆盖存档，喵~ */
+function applicationDocument(document: FinanceDocument): FinanceDocument {
+  return { ...document, plan: { ...document.plan, horizonMonths: MAX_MONTHS } };
+}
+
 /** 初始化读取失败时阻止自动写入，保护用户原始存档，喵~ */
 function initialize(storage: StorageAdapter): DocumentState {
   try {
     const json = storage.getItem(DEFAULT_STORAGE_KEY);
     const document = json === null ? createDocument(currentMonth()) : importDocument(json);
-    return { document, error: null, blocked: false, revision: 0, savedRevision: 0 };
+    return { document: applicationDocument(document), error: null, blocked: false, revision: 0, savedRevision: 0 };
   }
   catch { return { document: createDocument(currentMonth()),
     error: '无法读取已保存的方案。原始数据已保留，可导入备份或选择重新开始。', blocked: true, revision: 0, savedRevision: 0 }; }
@@ -43,7 +48,7 @@ function initialize(storage: StorageAdapter): DocumentState {
 /** 集中管理文档提交和保存状态，喵~ */
 function reducer(state: DocumentState, event: Event): DocumentState {
   if (event.type === 'commit') {
-    const document = { ...event.document };
+    const document = applicationDocument(event.document);
     for (const key of ['plan', 'goals', 'project'] as const) {
       if (JSON.stringify(document[key]) === JSON.stringify(state.document[key])) Object.assign(document, { [key]: state.document[key] });
     }

@@ -24,7 +24,7 @@ describe('计划草稿与正式方案', () => {
     const result = parsePlanDraft({ ...planDraft(plan), incomeGrowth: 'custom', incomeRate: '5', inflation: '3' }, plan).value!;
     expect(result.investmentReturn?.annualRate).toBe(0.08);
     expect(result.activeIncome?.[0]?.growth).toEqual({ kind: 'custom', annualRate: 0.05 });
-    expect(result.currentExpenses?.growth).toEqual({ kind: 'inflation' });
+    expect(result.currentExpenses?.[0]?.growth).toEqual({ kind: 'inflation' });
   });
   it('空通胀、明确零通胀和自定义通胀独立处理', () => {
     const plan = fixtureDocument().plan;
@@ -37,31 +37,44 @@ describe('计划草稿与正式方案', () => {
     act(() => result.current.editor.begin());
     act(() => result.current.editor.change('expenses', '240000'));
     expect(result.current.editor.model?.rows?.[0]?.value).toContain('6,000,000');
-    expect(result.current.api.document.plan.currentExpenses?.amount).toBe(120000);
+    expect(result.current.api.document.plan.currentExpenses?.[0]?.amount).toBe(120000);
     act(() => result.current.editor.cancel());
     expect(result.current.editor.model).toBeNull();
-    expect(result.current.api.document.plan.currentExpenses?.amount).toBe(120000);
+    expect(result.current.api.document.plan.currentExpenses?.[0]?.amount).toBe(120000);
+  });
+  it('读取、提交和导入均使用固定预测期，读取不会自动改写存档', () => {
+    const document = fixtureDocument();
+    document.plan.horizonMonths = 24;
+    const storage = memoryStorage(document);
+    const original = storage.values.get(DEFAULT_STORAGE_KEY);
+    const { result } = renderHook(() => useFinanceDocument(), { wrapper: wrapperFor(storage) });
+    expect(result.current.document.plan.horizonMonths).toBe(1200);
+    expect(storage.values.get(DEFAULT_STORAGE_KEY)).toBe(original);
+    act(() => { expect(result.current.commit(document)).toBeNull(); });
+    expect(result.current.document.plan.horizonMonths).toBe(1200);
+    expect(JSON.parse(storage.values.get(DEFAULT_STORAGE_KEY)!).plan.horizonMonths).toBe(1200);
+    act(() => { expect(result.current.importBackup(JSON.stringify(document))).toBeNull(); });
+    expect(result.current.document.plan.horizonMonths).toBe(1200);
+    expect(JSON.parse(storage.values.get(DEFAULT_STORAGE_KEY)!).plan.horizonMonths).toBe(1200);
   });
   it('同一会话调整多项配置，取消全部恢复，保存一次提交全部配置', () => {
     const { result } = renderHook(() => ({ api: useFinanceDocument(), editor: usePlanEditor() }), { wrapper: wrapperFor() });
     act(() => result.current.editor.begin());
     act(() => result.current.editor.change('incomeGrowth', 'inflation'));
-    act(() => result.current.editor.change('external', '24000'));
-    act(() => result.current.editor.change('horizon', '600'));
+    act(() => result.current.editor.change('expenses', '240000'));
     expect(result.current.api.document.plan.activeIncome?.[0]?.growth.kind).toBe('fixed');
     act(() => result.current.editor.cancel());
     act(() => result.current.editor.begin());
     expect(result.current.editor.draft?.incomeGrowth).toBe('fixed');
-    expect(result.current.editor.draft?.external).toBe('0');
-    expect(result.current.editor.draft?.horizon).toBe('1200');
+    expect(result.current.editor.draft?.expenses).toBe('120000');
+    expect(result.current.editor.draft).not.toHaveProperty('horizon');
     act(() => result.current.editor.change('incomeGrowth', 'inflation'));
-    act(() => result.current.editor.change('external', '24000'));
-    act(() => result.current.editor.change('horizon', '600'));
+    act(() => result.current.editor.change('expenses', '240000'));
     expect(result.current.api.document.plan.activeIncome?.[0]?.growth.kind).toBe('fixed');
     act(() => { expect(result.current.editor.save()).toBe(true); });
     expect(result.current.api.document.plan.activeIncome?.[0]?.growth.kind).toBe('inflation');
-    expect(result.current.api.document.plan.externalIncome?.amount).toBe(24000);
-    expect(result.current.api.document.plan.horizonMonths).toBe(600);
+    expect(result.current.api.document.plan.currentExpenses?.[0]?.amount).toBe(240000);
+    expect(result.current.api.document.plan.horizonMonths).toBe(1200);
   });
 });
 

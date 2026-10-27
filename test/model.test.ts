@@ -120,7 +120,7 @@ describe('准备金与自由后预算', () => {
 describe('月度资产推演', () => {
   it('期初投资、月末收支，总收益只计入资产一次', () => {
     const p = plan({ initialAssets: 1000000, activeIncome: [{ amount: 0, growth: { kind: 'fixed' }, durationMonths: null }],
-      currentExpenses: { amount: 0, growth: { kind: 'fixed' } } });
+      currentExpenses: [{ amount: 0, growth: { kind: 'fixed' }, durationMonths: null }] });
     const result = simulatePlan(p);
     expect(result.rows[12]!.assets).toBeCloseTo(1080000, 6);
     expect(result.rows[1]!.investmentTotal).toBeCloseTo(1000000 * (1.08 ** (1 / 12) - 1), 8);
@@ -129,7 +129,7 @@ describe('月度资产推演', () => {
   });
   it('总投资净损益允许为负，亏损按月减少资产', () => {
     const result = simulatePlan(plan({ initialAssets: 1000000, investmentReturn: { annualRate: -0.1 },
-      activeIncome: [{ amount: 0, growth: { kind: 'fixed' }, durationMonths: null }], currentExpenses: { amount: 0, growth: { kind: 'fixed' } } }));
+      activeIncome: [{ amount: 0, growth: { kind: 'fixed' }, durationMonths: null }], currentExpenses: [{ amount: 0, growth: { kind: 'fixed' }, durationMonths: null }] }));
     expect(result.status).toBe('complete');
     expect(result.rows[1]!.investmentTotal).toBeLessThan(0);
     expect(result.rows[12]!.assets).toBeCloseTo(900000, 6);
@@ -144,13 +144,13 @@ describe('月度资产推演', () => {
   });
   it('收益等于通胀时无投入资产的购买力保持不变', () => {
     const p = plan({ inflationRate: 0.03, investmentReturn: { annualRate: 0.03 },
-      activeIncome: [{ amount: 0, growth: { kind: 'fixed' }, durationMonths: null }], currentExpenses: { amount: 0, growth: { kind: 'fixed' } } });
+      activeIncome: [{ amount: 0, growth: { kind: 'fixed' }, durationMonths: null }], currentExpenses: [{ amount: 0, growth: { kind: 'fixed' }, durationMonths: null }] });
     const result = simulatePlan(p);
     expect(result.rows[120]!.assets / result.rows[120]!.priceIndex!).toBeCloseTo(600000, 6);
   });
   it('收益低于通胀时名义资产上涨但实际资产下降', () => {
     const result = simulatePlan(plan({ inflationRate: 0.03, investmentReturn: { annualRate: 0.02 },
-      activeIncome: [{ amount: 0, growth: { kind: 'fixed' }, durationMonths: null }], currentExpenses: { amount: 0, growth: { kind: 'fixed' } } }));
+      activeIncome: [{ amount: 0, growth: { kind: 'fixed' }, durationMonths: null }], currentExpenses: [{ amount: 0, growth: { kind: 'fixed' }, durationMonths: null }] }));
     expect(result.rows[120]!.assets).toBeGreaterThan(600000);
     expect(result.rows[120]!.assets / result.rows[120]!.priceIndex!).toBeLessThan(600000);
   });
@@ -170,7 +170,7 @@ describe('月度资产推演', () => {
   });
   it('资产池之外的被动收入在月末追加，不再次计入投资总收益', () => {
     const result = simulatePlan(plan({ initialAssets: 1000000,
-      activeIncome: [{ amount: 0, growth: { kind: 'fixed' }, durationMonths: null }], currentExpenses: { amount: 0, growth: { kind: 'fixed' } },
+      activeIncome: [{ amount: 0, growth: { kind: 'fixed' }, durationMonths: null }], currentExpenses: [{ amount: 0, growth: { kind: 'fixed' }, durationMonths: null }],
       externalIncome: { amount: 12000, growth: { kind: 'fixed' } } }));
     const monthlyReturn = 1.08 ** (1 / 12) - 1;
     expect(result.status).toBe('complete');
@@ -181,7 +181,7 @@ describe('月度资产推演', () => {
     expect(result.rows[12]!.assets).toBeCloseTo(1080000 + 1000 * 0.08 / monthlyReturn, 6);
   });
   it('名义模型不依赖未填写的纯展示通胀', () => {
-    const result = simulatePlan(plan({ inflationRate: null, currentExpenses: { amount: 120000, growth: { kind: 'fixed' } } }));
+    const result = simulatePlan(plan({ inflationRate: null, currentExpenses: [{ amount: 120000, growth: { kind: 'fixed' }, durationMonths: null }] }));
     expect(result.status).toBe('complete');
     expect(result.rows[1]!.priceIndex).toBeNull();
     expect(result.rows[1]!.inflationAdjustmentReal).toBeNull();
@@ -200,7 +200,7 @@ describe('月度资产推演', () => {
   });
   it('数值溢出与价格指数下溢有单独状态', () => {
     expect(simulatePlan(plan({ investmentReturn: { annualRate: 1e308 } })).status).toBe('overflow');
-    expect(simulatePlan(plan({ inflationRate: -0.999999999999, currentExpenses: { amount: 1, growth: { kind: 'fixed' } } })).status).toBe('overflow');
+    expect(simulatePlan(plan({ inflationRate: -0.999999999999, currentExpenses: [{ amount: 1, growth: { kind: 'fixed' }, durationMonths: null }] })).status).toBe('overflow');
     const result = simulatePlan(plan({ initialAssets: 1e308 }), project(flow({ kind: 'active-income', amount: 1e308 })));
     expect(result.status).toBe('overflow');
     expect(result.issue?.month).toBe(0);

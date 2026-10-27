@@ -9,7 +9,7 @@ import { fixtureDocument, memoryStorage, wrapperFor } from './fixtures';
 function documentWithInflation(inflationRate: number | null): FinanceDocument {
   const document = fixtureDocument();
   document.plan.inflationRate = inflationRate;
-  document.plan.currentExpenses = { amount: 120000, growth: { kind: 'fixed' } };
+  document.plan.currentExpenses = [{ amount: 120000, growth: { kind: 'fixed' }, durationMonths: null }];
   document.preferences.displayBasis = 'real';
   return document;
 }

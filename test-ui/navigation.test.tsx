@@ -126,7 +126,7 @@ describe('完整计划路由与草稿生命周期', () => {
     expect(result.current.workspace.plan.draft?.expenses).toBe('180000');
     act(() => result.current.navigate(-1));
     expect(result.current.workspace.plan.draft).toBeNull();
-    expect(result.current.workspace.api.document.plan.currentExpenses?.amount).toBe(120000);
+    expect(result.current.workspace.api.document.plan.currentExpenses?.[0]?.amount).toBe(120000);
   });
 
   it('目标高级步骤往返说明继续保留改动，取消恢复父目标草稿', () => {
