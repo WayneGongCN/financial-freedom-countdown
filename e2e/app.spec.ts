@@ -1,11 +1,11 @@
-import { expect, test, type Page } from './fixtures';
+import { expandSchedule, expect, test, type Page } from './fixtures';
 import { createDocument, DEFAULT_STORAGE_KEY } from '../src/index';
 
 /** 为浏览器准备显式合成数据，不使用真实财务存档，喵~ */
 function exampleDocument() {
   const document = createDocument('2026-10');
   document.plan = { ...document.plan, initialAssets: 600000, inflationRate: 0.03, investmentReturn: { annualRate: 0.08 },
-    activeIncome: [{ amount: 240000, growth: { kind: 'fixed' }, durationMonths: null }], currentExpenses: { amount: 120000, growth: { kind: 'inflation' } } };
+    activeIncome: [{ amount: 240000, growth: { kind: 'fixed' }, durationMonths: null }], currentExpenses: [{ amount: 120000, growth: { kind: 'inflation' }, durationMonths: null }] };
   document.goals[2]!.name = '资产覆盖生活支出';
   return document;
 }
@@ -19,7 +19,7 @@ async function seed(page: Page, inflationRate: number | null = 0.03, update?: (d
   await page.addInitScript(({ key, value }) => { if (!localStorage.getItem(key)) localStorage.setItem(key, value); }, { key: DEFAULT_STORAGE_KEY, value: JSON.stringify(document) });
 }
 
-test('首次填写计划，在同一面板设置预测期限并保存恢复', async ({ page }) => {
+test('首次填写计划，预测期限固定且保存恢复', async ({ page }) => {
   await page.goto('/');
   await expect(page.getByRole('heading', { name: '离自由，还有多远？' })).toBeVisible();
   await page.getByLabel('当前年支出', { exact: true }).fill('120000');
@@ -30,10 +30,11 @@ test('首次填写计划，在同一面板设置预测期限并保存恢复', as
   await page.getByLabel('年通胀率', { exact: true }).fill('3');
   const dialog = page.getByRole('dialog', { name: '我的计划', exact: true });
   await expect(dialog.getByLabel('当前年支出', { exact: true })).toHaveValue('120000');
+  await expandSchedule(page, '收入');
   await expect(dialog.getByLabel('收入增长方式', { exact: true })).toHaveValue('fixed');
+  await expandSchedule(page, '支出');
   await expect(dialog.getByLabel('支出增长方式', { exact: true })).toHaveValue('inflation');
-  await expect(dialog.getByLabel('最多向后预测', { exact: true })).toHaveValue('1200');
-  await dialog.getByLabel('最多向后预测', { exact: true }).fill('600');
+  await expect(page.getByLabel('最多向后预测', { exact: true })).toHaveCount(0);
   await expect(page).toHaveURL(/\?panel=plan$/);
   await expect(dialog.getByRole('button', { name: '确认并返回', exact: true })).toHaveCount(0);
   await page.getByRole('button', { name: '完成并保存', exact: true }).click();
@@ -41,7 +42,7 @@ test('首次填写计划，在同一面板设置预测期限并保存恢复', as
   await page.reload();
   await expect(page.getByText('年 5 个月', { exact: true })).toBeVisible();
   const saved = await page.evaluate((key) => JSON.parse(localStorage.getItem(key)!), DEFAULT_STORAGE_KEY);
-  expect(saved.plan.horizonMonths).toBe(600);
+  expect(saved.plan.horizonMonths).toBe(1200);
 });
 
 test('新方案默认 2% 通胀和 5% 收益，填写资产与收支即可预测', async ({ page }) => {
@@ -136,12 +137,14 @@ test('浏览器后退与 Esc 取消整次计划编辑，不落地草稿', async 
   await trigger.click();
   const dialog = page.getByRole('dialog', { name: '我的计划', exact: true });
   await dialog.getByLabel('当前可投资资产', { exact: true }).fill('700000');
+  await expandSchedule(page, '收入');
   await dialog.getByLabel('收入增长方式', { exact: true }).selectOption('inflation');
   await page.goBack();
   await expect(page).toHaveURL(/\/$/);
   await expect(dialog).not.toBeVisible();
   await trigger.click();
   await expect(dialog.getByLabel('当前可投资资产', { exact: true })).toHaveValue('600000');
+  await expandSchedule(page, '收入');
   await expect(dialog.getByLabel('收入增长方式', { exact: true })).toHaveValue('fixed');
   await dialog.getByLabel('当前可投资资产', { exact: true }).fill('700000');
   await page.keyboard.press('Escape');
@@ -168,6 +171,11 @@ for (const width of [320, 375, 390, 430, 1280]) {
     await expect(metrics.getByRole('button')).toHaveCount(5);
     const gap = metrics.locator('[data-goal-gap]');
     const gapBox = (await gap.boundingBox())!;
+    expect(progressBox.y + progressBox.height).toBeLessThanOrEqual(assetBox.y);
+    const assetNumber = metrics.getByRole('button', { name: /当前可投资资产/ }).locator('strong');
+    expect(await assetNumber.evaluate((element) => getComputedStyle(element).fontSize)).toBe(await gap.locator('strong').evaluate((element) => getComputedStyle(element).fontSize));
+    await expect(metrics.locator('button svg[aria-hidden="true"]')).toHaveCount(5);
+    await expect(gap.locator('svg')).toHaveCount(0);
     expect(Math.abs(assetBox.y - gapBox.y)).toBeLessThan(1);
     expect(assetBox.x + assetBox.width).toBeLessThanOrEqual(gapBox.x);
     await expect(gap.getByRole('button')).toHaveCount(0);
@@ -197,6 +205,7 @@ test('同页调整不增加步骤历史，模态限制焦点且关闭后恢复',
   const trigger = page.getByRole('button', { name: /当前可投资资产/ });
   await trigger.click();
   const dialog = page.getByRole('dialog', { name: '我的计划', exact: true });
+  await expandSchedule(page, '收入');
   await dialog.getByLabel('收入增长方式', { exact: true }).selectOption('inflation');
   await expect(dialog).toBeVisible();
   await expect(page).toHaveURL(/\?panel=plan$/);
@@ -432,14 +441,15 @@ test('资产置于编辑首位，滑条步进与精确超范围金额统一保�
   await expect(assets).toHaveValue('15000000.25');
 });
 
-test('紧凑增长配置始终展开且无说明入口，自定义增长校验并保存恢复', async ({ page }) => {
+test('收支阶段可展开且无说明入口，自定义增长校验并保存恢复', async ({ page }) => {
   await seed(page); await page.setViewportSize({ width: 390, height: 844 }); await page.goto('/?panel=plan');
   const dialog = page.getByRole('dialog', { name: '我的计划', exact: true });
-  const incomeGrowth = dialog.getByRole('region', { name: '当前阶段', exact: true });
+  const incomeGrowth = dialog.getByRole('region', { name: '收入阶段', exact: true }).getByRole('region', { name: '当前阶段', exact: true });
   await expect(dialog.getByRole('button', { name: /说明.*↗/ })).toHaveCount(0);
+  await expandSchedule(page, '收入'); await expandSchedule(page, '支出');
   for (const label of ['收入增长方式', '支出增长方式']) {
     const select = dialog.getByLabel(label, { exact: true });
-    expect(await select.evaluate((element) => element.closest('details') === null)).toBe(true);
+    expect(await select.evaluate((element) => element.closest('details')?.open)).toBe(true);
     await select.selectOption('custom');
   }
   const incomeRate = dialog.getByLabel('收入年增长率', { exact: true });
@@ -454,13 +464,15 @@ test('紧凑增长配置始终展开且无说明入口，自定义增长校验�
   await dialog.getByRole('button', { name: '完成并保存', exact: true }).click();
   await page.reload();
   await page.locator('[aria-label="计划核心指标"]').getByRole('button', { name: /年收入/ }).click();
+  await expandSchedule(page, '收入');
   await expect(dialog.getByLabel('收入增长方式', { exact: true })).toHaveValue('custom');
   await expect(incomeRate).toHaveValue('4.5');
+  await expandSchedule(page, '支出');
   await expect(dialog.getByLabel('支出增长方式', { exact: true })).toHaveValue('custom');
   await expect(expenseRate).toHaveValue('2.5');
   const saved = await page.evaluate((key) => JSON.parse(localStorage.getItem(key)!), DEFAULT_STORAGE_KEY);
   expect(saved.plan.activeIncome[0].growth).toEqual({ kind: 'custom', annualRate: 0.045 });
-  expect(saved.plan.currentExpenses.growth).toEqual({ kind: 'custom', annualRate: 0.025 });
+  expect(saved.plan.currentExpenses[0].growth).toEqual({ kind: 'custom', annualRate: 0.025 });
 });
 
 test('总览购买力不受旧名义金额偏好影响，移除假设行与重复资产指标', async ({ page }) => {
@@ -515,6 +527,7 @@ test('320px 短视口保持总览位置，表单滚动与增长换行不遮挡�
   await expect(trigger).toBeFocused();
   await expect.poll(() => main.evaluate((element) => element.scrollTop)).toBe(mainScroll);
   await trigger.click();
+  await expandSchedule(page, '收入'); await expandSchedule(page, '支出');
   for (const name of ['收入', '支出']) {
     const select = dialog.getByLabel(`${name}增长方式`, { exact: true });
     await select.selectOption('custom');
@@ -523,7 +536,7 @@ test('320px 短视口保持总览位置，表单滚动与增长换行不遮挡�
     const selectBox = (await select.boundingBox())!;
     const rateBox = (await rate.boundingBox())!;
     expect(rateBox.y).toBeGreaterThanOrEqual(selectBox.y + selectBox.height);
-    const region = dialog.getByRole('region', { name: name === '收入' ? '当前阶段' : `${name}增长`, exact: true });
+    const region = dialog.getByRole('region', { name: `${name}阶段`, exact: true }).getByRole('region', { name: '当前阶段', exact: true });
     expect(await region.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
     await expect(save).toBeInViewport({ ratio: 1 });
   }
@@ -531,7 +544,7 @@ test('320px 短视口保持总览位置，表单滚动与增长换行不遮挡�
   await save.click();
   const saved = await page.evaluate((key) => JSON.parse(localStorage.getItem(key)!), DEFAULT_STORAGE_KEY);
   expect(saved.plan.activeIncome[0].growth).toEqual({ kind: 'custom', annualRate: 0.045 });
-  expect(saved.plan.currentExpenses.growth).toEqual({ kind: 'custom', annualRate: 0.025 });
+  expect(saved.plan.currentExpenses[0].growth).toEqual({ kind: 'custom', annualRate: 0.025 });
 });
 
 

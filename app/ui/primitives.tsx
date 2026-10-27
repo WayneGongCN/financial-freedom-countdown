@@ -14,9 +14,9 @@ export function Button({ children, onClick, secondary = false, disabled = false 
 }
 
 /** 显示具有足够触控区域的辅助入口，喵~ */
-export function HelpLink({ children = '口径说明 ↗', onClick, href }: ClickProps & { children?: ReactNode; href?: string }) {
-  if (href) return <a className={s.link} href={href} onClick={event => followAppLink(event, onClick)}>{children}</a>;
-  return <button type="button" className={s.link} onClick={onClick}>{children}</button>;
+export function HelpLink({ children = '口径说明 ↗', onClick, href, danger = false }: ClickProps & { children?: ReactNode; href?: string; danger?: boolean }) {
+  if (href) return <a className={`${s.link} ${danger ? s.negative : ''}`} href={href} onClick={event => followAppLink(event, onClick)}>{children}</a>;
+  return <button type="button" className={`${s.link} ${danger ? s.negative : ''}`} onClick={onClick}>{children}</button>;
 }
 
 /** 只渲染传入选项，键盘切换不包含任何业务判断，喵~ */
@@ -113,7 +113,7 @@ export function Notice({ children, alert = false }: { children: ReactNode; alert
 
 /** 用原生披露控件管理纯展示展开状态，喵~ */
 export function Disclosure({ title, children, defaultOpen = false }: { title: string; children: ReactNode; defaultOpen?: boolean }) {
-  return <details className={s.disclosure} open={defaultOpen || undefined}><summary>{title}</summary><div className={s.stack}>{children}</div></details>;
+  return <details className={s.disclosure} open={defaultOpen || undefined}><summary><span>{title}</span><svg className={s.disclosureIcon} width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6" /></svg></summary><div className={s.stack}>{children}</div></details>;
 }
 
 /** 组合分区标题与可选操作，喵~ */

@@ -48,11 +48,12 @@
 .fill { height: 100%; background: var(--color-text); }
 .balances { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; }
 .coreMetrics { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
-.coreMetric { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; padding: 12px; min-width: 0; background: var(--color-canvas); border-radius: var(--radius); text-align: left; }
+.coreMetric { position: relative; display: flex; flex-direction: column; align-items: flex-start; gap: 4px; padding: 12px; min-width: 0; background: var(--color-canvas); border-radius: var(--radius); text-align: left; }
 .coreMetric strong { font-size: 22px; line-height: 30px; overflow-wrap: anywhere; }
 .metricNumber { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px; min-width: 0; }
-.assetMetric strong { font-size: 48px; line-height: 62px; }
-.gapMetric strong { font-size: 36px; line-height: 62px; }
+.assetMetric strong, .gapMetric strong { font-size: 48px; line-height: 62px; }
+.editIcon { position: absolute; top: 14px; right: 12px; width: 16px; height: 16px; color: var(--color-secondary); }
+.editableLabel { padding-right: 20px; }
 .forecastGrid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; gap: 16px; padding: 16px 0; border-block: 1px solid var(--color-line); }
 .forecastGrid > * { min-width: 0; }
 .forecastGrid .heroLabel { font-size: 12px; line-height: 20px; }
@@ -99,10 +100,10 @@
 .milestoneHead span { font-size: 14px; font-weight: 500; line-height: 22px; text-align: right; max-width: 40%; }
 .divider { height: 1px; width: 100%; background: var(--color-line); border: 0; margin: 0; }
 .assumptions { border: 0; background: transparent; text-align: left; padding: 0; display: flex; flex-direction: column; gap: 8px; }
-.disclosure summary { cursor: pointer; min-height: 44px; font-size: 16px; line-height: 26px; font-weight: 500; display: flex; align-items: center; justify-content: space-between; list-style: none; }
-.disclosure summary::after { content: '⌄'; color: var(--color-secondary); }
-.disclosure[open] summary::after { content: '⌃'; }
-.disclosure summary::-webkit-details-marker { display: none; }
+.disclosure > summary { cursor: pointer; min-height: 44px; font-size: 16px; line-height: 26px; font-weight: 500; display: flex; align-items: center; justify-content: space-between; list-style: none; }
+.disclosureIcon { width: 16px; height: 16px; flex: none; color: var(--color-secondary); }
+.disclosure[open] > summary > .disclosureIcon { transform: rotate(180deg); }
+.disclosure > summary::-webkit-details-marker { display: none; }
 .disclosure > div { padding-top: 20px; }
 .dialog { position: fixed; inset: auto 0 0; margin: 0 auto; padding: 0; width: 100%; max-width: 480px; max-height: calc(100dvh - 32px); height: min(85dvh, 900px); border: 0; border-radius: 12px 12px 0 0; background: white; overflow: hidden; }
 .dialog[open] { display: flex; flex-direction: column; }
@@ -120,5 +121,5 @@
 .editorPreview .row > :last-child { font-size: 14px; line-height: 20px; }
 .dialogFooter { padding: 12px 24px max(16px, env(safe-area-inset-bottom)); border-top: 1px solid var(--color-line); display: flex; gap: 12px; flex-shrink: 0; }
 .file { font-size: 12px; width: 100%; }
-@media (max-width: 350px) { .header, .content, .dialogHeader, .dialogContent, .dialogSummary, .dialogFooter { padding-left: 16px; padding-right: 16px; } .heroValue { font-size: 42px; } .balances { gap: 16px; } .coreMetric { padding: 10px; } .coreMetric strong { font-size: 20px; } .assetMetric strong { font-size: 42px; } .forecastGrid { gap: 12px; } .forecastGrid .subvalue { font-size: 22px; } }
+@media (max-width: 350px) { .header, .content, .dialogHeader, .dialogContent, .dialogSummary, .dialogFooter { padding-left: 16px; padding-right: 16px; } .heroValue { font-size: 42px; } .balances { gap: 16px; } .coreMetric { padding: 10px; } .coreMetric strong { font-size: 20px; } .assetMetric strong, .gapMetric strong { font-size: 42px; } .forecastGrid { gap: 12px; } .forecastGrid .subvalue { font-size: 22px; } }
 @media (max-height: 560px) { .dialog { height: calc(100dvh - 16px); max-height: calc(100dvh - 16px); } .dialogHeader { padding-top: 4px; padding-bottom: 4px; } .dialogSummary { padding-bottom: 8px; } .editorPreview { padding: 8px 12px; gap: 2px; } .editorPreview .heroValue { font-size: 24px; line-height: 30px; } }

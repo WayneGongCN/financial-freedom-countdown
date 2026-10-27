@@ -42,7 +42,7 @@ describe('集中调整计划核心参数', () => {
     const parsed = parsePlanDraft({ ...planDraft(plan), assets: '15000000.25', income: '1234567.89', expenses: '1000001.5', returnRate: '35.25' }, plan);
     expect(parsed.value).toMatchObject({
       initialAssets: 15000000.25,
-      activeIncome: [{ amount: 1234567.89, durationMonths: null }], currentExpenses: { amount: 1000001.5 },
+      activeIncome: [{ amount: 1234567.89, durationMonths: null }], currentExpenses: [{ amount: 1000001.5, durationMonths: null }],
       investmentReturn: { annualRate: 0.3525 },
     });
     expect(parsePlanDraft({ ...planDraft(plan), returnRate: '-20.1' }, plan).value?.investmentReturn?.annualRate).toBeCloseTo(-0.201);
@@ -51,21 +51,21 @@ describe('集中调整计划核心参数', () => {
     expect(parsePlanDraft({ ...planDraft(plan), assets: '-1' }, plan).errors.assets).toBe('资产不能为负数');
   });
 
-  it('所有计划配置直接平铺在同一页面，四组增长字段具有唯一名称', () => {
+  it('计划只展示核心参数，收支增长字段具有唯一名称', () => {
     const { result } = renderHook(() => usePlanEditor(), { wrapper: wrapperFor() });
     act(() => result.current.begin());
-    act(() => { result.current.change('budgetKind', 'custom'); for (const prefix of ['income', 'expenses', 'external', 'budget']) result.current.change(`${prefix}Growth`, 'custom'); });
+    act(() => { for (const prefix of ['income', 'expenses']) result.current.change(`${prefix}Growth`, 'custom'); });
     const model = result.current.model!;
-    const fields = [...result.current.incomeSchedule!.stages.flatMap((stage) => stage.fields), ...model.sections.flatMap((section) => section.fields)];
+    const fields = [...result.current.incomeSchedule!.stages.flatMap((stage) => stage.fields), ...result.current.expenseSchedule!.stages.flatMap((stage) => stage.fields), ...model.sections.flatMap((section) => section.fields)];
     expect(model).toMatchObject({ title: '我的计划', saveLabel: '完成并保存' });
-    expect(model.sections.map((section) => section.id)).toEqual(['core-controls', 'expense-growth', 'external', 'budget', 'horizon', 'amount-basis']);
+    expect(model.sections.map((section) => section.id)).toEqual(['core-controls']);
     expect(model.sections.every((section) => !section.destination && !section.collapsed)).toBe(true);
-    expect(model.sections.filter((section) => section.layout === 'growth').map((section) => section.id)).toEqual(['expense-growth']);
-    expect(model.sections.filter((section) => section.layout === 'compact').map((section) => section.id)).toEqual(['external', 'budget', 'horizon', 'amount-basis']);
+    expect(model.sections.filter((section) => section.layout === 'growth').map((section) => section.id)).toEqual([]);
+    expect(model.sections.filter((section) => section.layout === 'compact').map((section) => section.id)).toEqual([]);
     expect(model.sections.every((section) => section.help === undefined)).toBe(true);
     expect(new Set(fields.map((field) => field.label)).size).toBe(fields.length);
     expect(fields.filter((field) => field.id.endsWith('Growth') || field.id.endsWith('Rate') && field.id !== 'returnRate').map((field) => field.label)).toEqual([
-      '收入增长方式', '收入年增长率', '支出增长方式', '支出年增长率', '其他被动收入增长方式', '其他被动收入年增长率', '自由后预算增长方式', '自由后预算年增长率',
+      '收入增长方式', '收入年增长率', '支出增长方式', '支出年增长率',
     ]);
   });
 
@@ -84,88 +84,63 @@ describe('集中调整计划核心参数', () => {
     expect(result.current.targetField).toBeUndefined();
   });
 
-  it('预测期限在同一页面解释单位、换算与边界', () => {
+  it('预测期限固定为 1200 个月，草稿和字段均不再提供配置', () => {
+    const source = fixtureDocument().plan;
+    source.horizonMonths = 600;
+    const draft = planDraft(source);
+    expect(draft).not.toHaveProperty('horizon');
+    expect(parsePlanDraft({ ...draft, horizon: '1' }, source).value!.horizonMonths).toBe(1200);
     const { result } = renderHook(() => usePlanEditor(), { wrapper: wrapperFor() });
     act(() => result.current.begin());
-    const fields = result.current.model!.sections.flatMap((section) => section.fields);
-    expect(fields.find((field) => field.id === 'horizon')).toMatchObject({ label: '最多向后预测', unit: '个月' });
-    expect(fields.find((field) => field.id === 'horizon')!.hint).toContain('100 年');
-    expect(fields.find((field) => field.id === 'horizon')!.hint).toContain('超期表示期内未达成');
+    expect(result.current.model!.sections.flatMap((section) => section.fields).some((field) => field.id === 'horizon')).toBe(false);
     act(() => result.current.change('horizon', '600'));
-    expect(result.current.model!.sections.flatMap((section) => section.fields).find((field) => field.id === 'horizon')!.hint).toContain('50 年');
-    act(() => result.current.change('horizon', '1201'));
-    expect(result.current.model!.canSave).toBe(false);
-    expect(result.current.model!.sections.flatMap((section) => section.fields).find((field) => field.id === 'horizon')!.error).toContain('1～1200');
+    expect(result.current.draft).not.toHaveProperty('horizon');
+    expect(result.current.parsed.value!.horizonMonths).toBe(1200);
   });
 
-  it('资产池外收入解释税费与不重复计算投资总收益', () => {
-    const { result } = renderHook(() => usePlanEditor(), { wrapper: wrapperFor() });
-    act(() => result.current.begin());
-    const section = result.current.model!.sections.find((section) => section.id === 'external')!;
-    const field = section.fields[0]!;
-    expect(field).toMatchObject({ id: 'external', label: '其他年被动收入（税费后）', unit: '元/年' });
-    expect(field.hint).toContain('当前持续收取的资产池外税后收入');
-    expect(field.hint).toContain('资产池内投资收益已计入总收益，不重复填写');
-    expect(section.help).toBeUndefined();
-    expect(section.note).toContain('每月按当月年额 ÷ 12 计入结余和资产');
-    expect(section.note).toContain('并纳入总被动收入');
-    expect(section.note).toContain('资本目标仅在勾选抵扣其他被动收入时减少门槛');
-  });
-
-  it('四组增长规则独立保存，百分比仅转换一次', () => {
+  it('收支增长规则独立保存，百分比仅转换一次', () => {
     const { result } = renderHook(() => usePlanEditor(), { wrapper: wrapperFor() });
     act(() => result.current.begin());
     act(() => {
-      result.current.change('budgetKind', 'custom');
-      result.current.change('budget', '96000');
-      result.current.change('external', '24000');
-      for (const [prefix, rate] of [['income', '5'], ['expenses', '2'], ['external', '3'], ['budget', '4']]) {
+      for (const [prefix, rate] of [['income', '5'], ['expenses', '2']]) {
         result.current.change(`${prefix}Growth`, 'custom');
         result.current.change(`${prefix}Rate`, rate!);
       }
     });
     expect(result.current.parsed.value).toMatchObject({
       activeIncome: [{ growth: { kind: 'custom', annualRate: 0.05 }, durationMonths: null }],
-      currentExpenses: { growth: { kind: 'custom', annualRate: 0.02 } },
-      externalIncome: { amount: 24000, growth: { kind: 'custom', annualRate: 0.03 } },
-      retirementBudget: { kind: 'custom', flow: { amount: 96000, growth: { kind: 'custom', annualRate: 0.04 } } },
+      currentExpenses: [{ growth: { kind: 'custom', annualRate: 0.02 }, durationMonths: null }],
     });
-    const choices = [...result.current.incomeSchedule!.stages.flatMap((stage) => stage.fields), ...result.current.model!.sections.flatMap((section) => section.fields)].filter((field) => field.id.endsWith('Growth'));
-    expect(choices).toHaveLength(4);
+    const choices = [...result.current.incomeSchedule!.stages.flatMap((stage) => stage.fields), ...result.current.expenseSchedule!.stages.flatMap((stage) => stage.fields), ...result.current.model!.sections.flatMap((section) => section.fields)].filter((field) => field.id.endsWith('Growth'));
+    expect(choices).toHaveLength(2);
     for (const choice of choices) expect(choice.options?.map((option) => option.value)).toEqual(['fixed', 'inflation', 'custom']);
     act(() => result.current.change('expensesGrowth', 'inflation'));
-    expect(result.current.parsed.value?.currentExpenses?.growth).toEqual({ kind: 'inflation' });
+    expect(result.current.parsed.value?.currentExpenses?.[0]?.growth).toEqual({ kind: 'inflation' });
     expect(result.current.parsed.value?.activeIncome?.[0]?.growth).toEqual({ kind: 'custom', annualRate: 0.05 });
   });
 
-  it('预算来源切换在同页保留自定义草稿，引用当前支出同步金额与增长', () => {
-    const { result } = renderHook(() => ({ editor: usePlanEditor(), api: useFinanceDocument() }), { wrapper: wrapperFor() });
+  it('隐藏项没有草稿入口，保存可见参数时原样保留既有收入和独立预算', () => {
+    const document = fixtureDocument();
+    document.plan.externalIncome = { amount: 24000, growth: { kind: 'custom', annualRate: 0.03 } };
+    document.plan.retirementBudget = { kind: 'custom', flow: { amount: 96000, growth: { kind: 'fixed' } } };
+    const { result } = renderHook(() => ({ editor: usePlanEditor(), api: useFinanceDocument() }), { wrapper: wrapperFor(memoryStorage(document)) });
     act(() => result.current.editor.begin());
-    const budget = result.current.editor.model!.sections.find((section) => section.id === 'budget')!;
-    expect(budget.fields.map((field) => field.id)).toEqual(['budgetKind']);
-    expect(budget.fields[0]).toMatchObject({ label: '自由后预算来源', kind: 'select', value: 'current',
-      options: [{ value: 'current', label: '引用当前支出' }, { value: 'custom', label: '单独设置' }] });
-    act(() => {
-      result.current.editor.change('budgetKind', 'custom'); result.current.editor.change('budget', '96000');
-      result.current.editor.change('budgetGrowth', 'custom'); result.current.editor.change('budgetRate', '2');
-    });
-    expect(result.current.editor.model!.sections.find((section) => section.id === 'budget')!.fields.find((field) => field.id === 'budget')!.unit).toBe('元/年');
-    act(() => {
-      result.current.editor.change('budgetKind', 'current'); result.current.editor.change('expenses', '180000'); result.current.editor.change('expensesGrowth', 'fixed');
-    });
-    expect(result.current.editor.draft).toMatchObject({ budget: '96000', budgetRate: '2' });
-    expect(result.current.editor.parsed.value!.retirementBudget).toEqual({ kind: 'current' });
-    expect(evaluateMetric(createMetricContext(result.current.editor.parsed.value!), metricPreset('freedom-capital'))).toMatchObject({ status: 'available', value: 4500000 });
-    act(() => result.current.editor.change('budgetKind', 'custom'));
-    expect(result.current.editor.parsed.value!.retirementBudget).toEqual({ kind: 'custom', flow: { amount: 96000, growth: { kind: 'custom', annualRate: 0.02 } } });
-    expect(result.current.api.document.plan.retirementBudget).toEqual({ kind: 'current' });
+    for (const key of ['external', 'externalGrowth', 'externalRate', 'budgetKind', 'budget', 'budgetGrowth', 'budgetRate']) {
+      expect(result.current.editor.draft).not.toHaveProperty(key);
+      act(() => result.current.editor.change(key, '.'));
+    }
+    act(() => result.current.editor.change('expenses', '180000'));
+    expect(result.current.editor.model!.canSave).toBe(true);
     act(() => { expect(result.current.editor.save()).toBe(true); });
-    expect(result.current.api.document.plan.retirementBudget).toMatchObject({ kind: 'custom', flow: { amount: 96000 } });
+    expect(result.current.api.document.plan.externalIncome).toEqual(document.plan.externalIncome);
+    expect(result.current.api.document.plan.retirementBudget).toEqual(document.plan.retirementBudget);
+    expect(result.current.api.document.plan.currentExpenses![0]!.amount).toBe(180000);
   });
 
   it('其他年收入按十二分之一进入每月结余，并只在明确抵扣时减少资本目标', () => {
     const source = fixtureDocument().plan;
-    const plan = parsePlanDraft({ ...planDraft(source), returnRate: '0', inflation: '0', external: '24000', expensesGrowth: 'fixed' }, source).value!;
+    source.externalIncome = { amount: 24000, growth: { kind: 'fixed' } };
+    const plan = parsePlanDraft({ ...planDraft(source), returnRate: '0', inflation: '0', expensesGrowth: 'fixed' }, source).value!;
     expect(simulatePlan(plan).rows[1]).toMatchObject({ activeIncome: 20000, externalIncome: 2000, expenses: 10000, netCashFlow: 12000, assets: 612000 });
     const context = createMetricContext(plan);
     expect(evaluateMetric(context, metricPreset('passive-total'))).toMatchObject({ status: 'available', value: 24000 });
@@ -175,16 +150,15 @@ describe('集中调整计划核心参数', () => {
     expect(evaluateMetric(context, { ...capital, deductExternalIncome: true })).toMatchObject({ status: 'available', value: 2400000 });
   });
 
-  it.each(['income', 'expenses', 'external', 'budget'])('同页 %s 自定义增长输入无效时不能保存，修正后恢复预测', (prefix) => {
+  it.each(['income', 'expenses'])('同页 %s 自定义增长输入无效时不能保存，修正后恢复预测', (prefix) => {
     const { result } = renderHook(() => usePlanEditor(), { wrapper: wrapperFor() });
     act(() => result.current.begin());
     act(() => {
-      if (prefix === 'budget') result.current.change('budgetKind', 'custom');
       result.current.change(`${prefix}Growth`, 'custom'); result.current.change(`${prefix}Rate`, '.');
     });
     expect(result.current.model!.canSave).toBe(false);
     expect(result.current.model!.preview).toBeUndefined();
-    expect([...result.current.incomeSchedule!.stages.flatMap((stage) => stage.fields), ...result.current.model!.sections.flatMap((section) => section.fields)].find((field) => field.id === `${prefix}Rate`)!.error).toBeTruthy();
+    expect([...result.current.incomeSchedule!.stages.flatMap((stage) => stage.fields), ...result.current.expenseSchedule!.stages.flatMap((stage) => stage.fields), ...result.current.model!.sections.flatMap((section) => section.fields)].find((field) => field.id === `${prefix}Rate`)!.error).toBeTruthy();
     act(() => result.current.change(`${prefix}Rate`, '2'));
     expect(result.current.model!.canSave).toBe(true);
     expect(result.current.model!.preview).toBeDefined();

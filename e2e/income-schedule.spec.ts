@@ -1,4 +1,4 @@
-import { expect, test, type Page } from './fixtures';
+import { expandSchedule, expect, test, type Page } from './fixtures';
 import { createDocument, DEFAULT_STORAGE_KEY, type FinanceDocument } from '../src/index';
 
 /** 为浏览器提供可重复的合成方案，刷新保留测试中的主动保存，喵~ */
@@ -6,7 +6,7 @@ async function seed(page: Page, document?: FinanceDocument) {
   const value = document ?? createDocument('2026-10');
   if (!document) value.plan = { ...value.plan, initialAssets: 600000, investmentReturn: { annualRate: 0.08 },
     activeIncome: [{ amount: 240000, growth: { kind: 'fixed' }, durationMonths: null }],
-    currentExpenses: { amount: 120000, growth: { kind: 'fixed' } } };
+    currentExpenses: [{ amount: 120000, growth: { kind: 'fixed' }, durationMonths: null }] };
   await page.addInitScript(({ key, json }) => {
     if (!localStorage.getItem(key)) localStorage.setItem(key, json);
   }, { key: DEFAULT_STORAGE_KEY, json: JSON.stringify(value) });
@@ -15,8 +15,10 @@ async function seed(page: Page, document?: FinanceDocument) {
 test('工作、空档和再就业连续配置，保存刷新及删除取消均正确', async ({ page }) => {
   await seed(page); await page.goto('/?panel=plan');
   const dialog = page.getByRole('dialog', { name: '我的计划', exact: true });
-  const current = dialog.getByRole('region', { name: '当前阶段', exact: true });
-  const add = dialog.getByRole('button', { name: '＋ 添加下一阶段', exact: true });
+  const income = dialog.getByRole('region', { name: '收入阶段', exact: true });
+  await expandSchedule(page, '收入');
+  const current = income.getByRole('region', { name: '当前阶段', exact: true });
+  const add = income.getByRole('button', { name: '＋ 添加下一阶段', exact: true });
   const save = dialog.getByRole('button', { name: '完成并保存', exact: true });
   await expect(add).toBeDisabled();
   await current.getByLabel('收入持续期限').selectOption('finite');
@@ -25,15 +27,16 @@ test('工作、空档和再就业连续配置，保存刷新及删除取消均�
   await expect(current.getByLabel('持续时长')).toHaveValue('60');
   await expect(current).toContainText('第 1～60 月');
   await add.click();
-  const second = dialog.getByRole('region', { name: '阶段 2', exact: true });
+  const second = income.getByRole('region', { name: '阶段 2', exact: true });
   await expect(save).toBeDisabled();
   await second.getByLabel('阶段开始时的税后年收入').fill('0');
   await second.getByLabel('收入持续期限').selectOption('finite');
   await second.getByLabel('持续时长').fill('1');
   await expect(second).toContainText('第 61～72 月');
   await add.click();
-  const third = dialog.getByRole('region', { name: '阶段 3', exact: true });
+  const third = income.getByRole('region', { name: '阶段 3', exact: true });
   await third.getByLabel('阶段开始时的税后年收入').fill('120000');
+  await expandSchedule(page, '收入');
   await third.getByLabel('收入增长方式').selectOption('custom');
   await third.getByLabel('收入年增长率').fill('3');
   await expect(third).toContainText('第 73 月起，不限期');
@@ -48,6 +51,7 @@ test('工作、空档和再就业连续配置，保存刷新及删除取消均�
     { amount: 120000, growth: { kind: 'custom', annualRate: 0.03 }, durationMonths: null },
   ]);
   await card.click();
+  await expandSchedule(page, '收入');
   await expect(dialog.locator('[data-plan-field="income"]')).toHaveAttribute('data-highlighted', 'true');
   await second.getByRole('button', { name: '删除阶段 2' }).click();
   await expect(second).toContainText('第 61 月起，不限期');
@@ -55,6 +59,7 @@ test('工作、空档和再就业连续配置，保存刷新及删除取消均�
   await dialog.getByRole('button', { name: '取消', exact: true }).click();
   expect(await page.evaluate((key) => localStorage.getItem(key), DEFAULT_STORAGE_KEY)).toBe(original);
   await card.click();
+  await expandSchedule(page, '收入');
   await expect(third.getByLabel('收入年增长率')).toHaveValue('3');
   await second.getByRole('button', { name: '删除阶段 2' }).click();
   await save.click();
@@ -64,7 +69,9 @@ test('工作、空档和再就业连续配置，保存刷新及删除取消均�
 test('有限期限与空金额校验，零收入可保存且回显停止时间', async ({ page }) => {
   await seed(page); await page.goto('/?panel=plan');
   const dialog = page.getByRole('dialog', { name: '我的计划', exact: true });
-  const current = dialog.getByRole('region', { name: '当前阶段', exact: true });
+  const income = dialog.getByRole('region', { name: '收入阶段', exact: true });
+  await expandSchedule(page, '收入');
+  const current = income.getByRole('region', { name: '当前阶段', exact: true });
   const save = dialog.getByRole('button', { name: '完成并保存', exact: true });
   await current.getByLabel('收入持续期限').selectOption('finite');
   await current.getByLabel('持续时长').fill('0.1');
@@ -84,12 +91,15 @@ for (const width of [320, 390]) {
     await page.setViewportSize({ width, height: 844 });
     await seed(page); await page.goto('/?panel=plan');
     const dialog = page.getByRole('dialog', { name: '我的计划', exact: true });
-    const current = dialog.getByRole('region', { name: '当前阶段', exact: true });
+    const income = dialog.getByRole('region', { name: '收入阶段', exact: true });
+    await expandSchedule(page, '收入');
+    const current = income.getByRole('region', { name: '当前阶段', exact: true });
     await current.getByLabel('收入持续期限').selectOption('finite');
     await current.getByLabel('持续时长').fill('5');
-    await dialog.getByRole('button', { name: '＋ 添加下一阶段', exact: true }).click();
-    const second = dialog.getByRole('region', { name: '阶段 2', exact: true });
+    await income.getByRole('button', { name: '＋ 添加下一阶段', exact: true }).click();
+    const second = income.getByRole('region', { name: '阶段 2', exact: true });
     await second.getByLabel('阶段开始时的税后年收入').fill('120000');
+    await expandSchedule(page, '收入');
     await second.getByLabel('收入增长方式').selectOption('custom');
     await second.getByLabel('收入年增长率').fill('2.5');
     await expect(dialog.getByRole('button', { name: '完成并保存', exact: true })).toBeInViewport({ ratio: 1 });
@@ -104,7 +114,7 @@ for (const width of [320, 390]) {
 test('当前达成后发生资金不足，总览与草稿仍展示不足月份', async ({ page }) => {
   const document = createDocument('2026-10');
   document.plan = { ...document.plan, initialAssets: 1000, horizonMonths: 12, investmentReturn: { annualRate: 0 },
-    activeIncome: [{ amount: 0, growth: { kind: 'fixed' }, durationMonths: 1 }], currentExpenses: { amount: 12000, growth: { kind: 'fixed' } } };
+    activeIncome: [{ amount: 0, growth: { kind: 'fixed' }, durationMonths: 1 }], currentExpenses: [{ amount: 12000, growth: { kind: 'fixed' }, durationMonths: null }] };
   document.goals = [{ id: 'target', name: '资产目标', left: { kind: 'assets', basis: 'nominal' }, right: { kind: 'amount', amount: 1000, unit: 'capital', basis: 'nominal' }, ratio: 1, comparison: 'scenario' }];
   document.preferences.primaryGoalId = 'target';
   await seed(page, document); await page.goto('/');

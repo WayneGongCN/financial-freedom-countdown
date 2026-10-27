@@ -21,7 +21,7 @@ export function FinanceApp() {
     <BottomSheet open={!nav.guide && nav.panel === 'plan' && !!plan.model} title={plan.model?.title ?? '我的计划'} onClose={closeEditor}
       summary={plan.model && <EditorPreview model={plan.model} />}
       footer={<Button onClick={savePlan} disabled={!plan.model?.canSave}>{plan.model?.saveLabel ?? '完成并保存'}</Button>}>
-      {plan.model && <div className={s.stack}><PlanEditorView model={plan.model} targetField={plan.targetField} active={!nav.guide && nav.panel === 'plan'} onChange={plan.change} onHelp={nav.help} incomeSchedule={plan.incomeSchedule ? { model: plan.incomeSchedule, onChange: plan.change, onAdd: plan.addIncomeStage, onRemove: plan.removeIncomeStage } : undefined} />
+      {plan.model && <div className={s.stack}><PlanEditorView model={plan.model} targetField={plan.targetField} active={!nav.guide && nav.panel === 'plan'} onChange={plan.change} onHelp={nav.help} incomeSchedule={plan.incomeSchedule ? { model: plan.incomeSchedule, onChange: plan.change, onAdd: plan.addIncomeStage, onRemove: plan.removeIncomeStage } : undefined} expenseSchedule={plan.expenseSchedule ? { model: plan.expenseSchedule, onChange: plan.change, onAdd: plan.addExpenseStage, onRemove: plan.removeExpenseStage } : undefined} />
         <Disclosure title="本地数据与备份"><p className={s.caption}>只保存于当前浏览器。导出文件包含你的财务数据，请妥善保管。</p><Button secondary onClick={transfer.download}>导出正式方案</Button><label className={s.caption}>导入 JSON 备份<input className={s.file} type="file" accept="application/json,.json" onChange={(event) => { void importFile(event.target.files?.[0]); event.target.value = ''; }} /></label>{transfer.message && <p className={s.caption} role="status">{transfer.message}</p>}</Disclosure>
       </div>}
     </BottomSheet>

@@ -1,5 +1,5 @@
 import { cashAmount, isDue, projectAnnualAt, reserveSchedule, retirementAnnualAt } from './cash-flows.js';
-import { activeIncomeAnnualAt, annualValue, convertBasis, MissingInputError, nominalReturn, priceIndex, required } from './math.js';
+import { activeIncomeAnnualAt, annualValue, convertBasis, expensesAnnualAt, MissingInputError, nominalReturn, priceIndex, required } from './math.js';
 import { simulatePlan, type MonthlyRow, type Projection } from './projection.js';
 import { metricSchema, planSchema, projectSchema, type Basis, type Component, type MetricSpec, type Plan, type Project } from './schema.js';
 
@@ -76,7 +76,7 @@ function annualComponent(context: MetricContext, component: Component, month: nu
   if (component === 'active-income') return activeIncomeAnnualAt(plan, month) + event.activeIncome;
   if (component === 'external-income') return annualValue(plan.externalIncome, plan, month, 'externalIncome') + event.passiveIncome;
   if (component === 'expenses') {
-    const expenses = annualValue(plan.currentExpenses, plan, month, 'currentExpenses') + event.expenses - event.savings;
+    const expenses = expensesAnnualAt(plan, month) + event.expenses - event.savings;
     if (expenses < 0) throw new RangeError('节省费用不能超过当月年化支出');
     return -expenses;
   }
@@ -94,9 +94,9 @@ function monthlyComponent(row: MonthlyRow, component: Exclude<Component, 'active
 /** 单独推导预算现金流，不要求与该指标无关的资产和投资输入，喵~ */
 function budgetComponent(context: MetricContext, component: 'active-income' | 'external-income' | 'expenses', month: number): number {
   const { plan, project } = context;
-  const flow = component === 'external-income' ? plan.externalIncome : plan.currentExpenses;
-  const field = component === 'active-income' ? 'activeIncome' : component === 'external-income' ? 'externalIncome' : 'currentExpenses';
-  let value = (component === 'active-income' ? activeIncomeAnnualAt(plan, month) : annualValue(flow, plan, month, field)) / 12;
+  let value = (component === 'active-income' ? activeIncomeAnnualAt(plan, month)
+    : component === 'expenses' ? expensesAnnualAt(plan, month)
+      : annualValue(plan.externalIncome, plan, month, 'externalIncome')) / 12;
   for (const event of project?.cashFlows ?? []) {
     const relevant = component === 'active-income' ? event.kind === 'active-income'
       : component === 'external-income' ? event.kind === 'passive-income'

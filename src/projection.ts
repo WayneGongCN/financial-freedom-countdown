@@ -1,5 +1,5 @@
 import { projectCashAt } from './cash-flows.js';
-import { activeIncomeAnnualAt, annualToMonthly, annualValue, MissingInputError, nominalReturn, priceIndex, required } from './math.js';
+import { activeIncomeAnnualAt, annualToMonthly, annualValue, expensesAnnualAt, MissingInputError, nominalReturn, priceIndex, required } from './math.js';
 import { planSchema, projectSchema, type Plan, type Project } from './schema.js';
 
 export interface MonthlyRow {
@@ -61,7 +61,7 @@ export function simulatePlan(planInput: Plan, projectInput: Project | null = nul
       const cash = projectCashAt(plan, project, month);
       const activeIncome = activeIncomeAnnualAt(plan, month) / 12 + cash.activeIncome;
       const externalIncome = annualValue(plan.externalIncome, plan, month, 'externalIncome') / 12 + cash.passiveIncome;
-      const expenses = annualValue(plan.currentExpenses, plan, month, 'currentExpenses') / 12 + cash.expenses - cash.savings;
+      const expenses = expensesAnnualAt(plan, month) / 12 + cash.expenses - cash.savings;
       if (expenses < 0) throw new RangeError('节省费用不能超过该月支出');
       const investmentTotal = previous.assets * monthlyReturn;
       const index = optionalPriceIndex(plan, month);

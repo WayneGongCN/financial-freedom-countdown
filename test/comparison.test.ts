@@ -87,7 +87,7 @@ describe('消费与增收的两条路径', () => {
     expect(() => compareProject(plan(), [], project(), { referenceMonth: 1201 })).toThrow('月份');
   });
   it('未知通胀只隐藏购买力分解，不阻止名义差额', () => {
-    const result = compareProject(plan({ inflationRate: null, currentExpenses: { amount: 120000, growth: { kind: 'fixed' } } }), [amountGoal(3000000)], project(flow()));
+    const result = compareProject(plan({ inflationRate: null, currentExpenses: [{ amount: 120000, growth: { kind: 'fixed' }, durationMonths: null }] }), [amountGoal(3000000)], project(flow()));
     expect(result.impact).toMatchObject({ status: 'available', netPrincipalDifferenceReal: null, investmentReturnDifferenceReal: null, assetDifferenceReal: null });
   });
   it('比较不能修改宏观计划、目标、项目或共享预设', () => {
