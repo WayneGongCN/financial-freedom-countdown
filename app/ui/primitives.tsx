@@ -61,6 +61,8 @@ function sliderNumber(value: string): number | null {
 /** 将精确输入与滑块绑定到同一草稿，手输扩展区间且拖动时不收缩范围，喵~ */
 export function SliderField({ field, onChange }: ChangeProps & { field: FieldModel & { slider: NonNullable<FieldModel['slider']> } }) {
   const id = useId();
+  const touch = useRef<{ id: number; x: number; y: number; value: number; width: number; axis: 'pending' | 'x' | 'y'; last: number } | null>(null);
+  const ignoreNativeTouch = useRef(false);
   const [range, setRange] = useState(field.slider);
   const numeric = sliderNumber(field.value);
   const valid = numeric !== null && !field.error;
@@ -68,11 +70,43 @@ export function SliderField({ field, onChange }: ChangeProps & { field: FieldMod
     setRange({ ...range, min: Math.min(range.min, numeric), max: Math.max(range.max, numeric) });
   }
   const value = valid ? Math.max(range.min, Math.min(range.max, numeric)) : Math.max(range.min, Math.min(range.max, 0));
+  /** 触屏按下时不跳值，等待方向明确；鼠标继续使用原生滑块，喵~ */
+  function startTouch(event: React.PointerEvent<HTMLInputElement>) {
+    if (event.pointerType !== 'touch') { ignoreNativeTouch.current = false; return; }
+    event.preventDefault();
+    ignoreNativeTouch.current = true;
+    if (!event.isPrimary || field.disabled) return;
+    touch.current = { id: event.pointerId, x: event.clientX, y: event.clientY, value, width: event.currentTarget.getBoundingClientRect().width, axis: 'pending', last: value };
+    event.currentTarget.setPointerCapture(event.pointerId);
+  }
+  /** 纵向优先滚动；横向超过阈值后按相对位移调节，避免点击轨道造成金额突跳，喵~ */
+  function moveTouch(event: React.PointerEvent<HTMLInputElement>) {
+    const gesture = touch.current;
+    if (!gesture || gesture.id !== event.pointerId) return;
+    const dx = event.clientX - gesture.x;
+    const dy = event.clientY - gesture.y;
+    if (gesture.axis === 'pending') {
+      if (Math.max(Math.abs(dx), Math.abs(dy)) < 10) return;
+      gesture.axis = Math.abs(dx) > Math.abs(dy) * 1.5 ? 'x' : 'y';
+    }
+    if (gesture.axis !== 'x' || gesture.width <= 0) return;
+    const next = gesture.value + dx / gesture.width * (range.max - range.min);
+    const stepped = Number((range.min + Math.round((next - range.min) / range.step) * range.step).toFixed(10));
+    const clamped = Math.max(range.min, Math.min(range.max, stepped));
+    if (clamped === gesture.last) return;
+    gesture.last = clamped;
+    onChange(field.id, String(clamped));
+  }
+  /** 结束或被浏览器滚动接管时清除手势，并恢复原生及辅助技术操作，喵~ */
+  function endTouch(event: React.PointerEvent<HTMLInputElement>) {
+    if (touch.current?.id === event.pointerId) { touch.current = null; ignoreNativeTouch.current = false; }
+  }
   return <div className={s.sliderField}>
     <TextField field={field} onChange={onChange} />
     <input id={id} className={s.slider} type="range" min={range.min} max={range.max} step={range.step} value={value}
       aria-label={`${field.label}滑块`} aria-valuetext={valid ? `${field.value}${field.unit ?? ''}` : '未填写有效数值，拖动以设置'}
-      disabled={field.disabled} onChange={(event) => onChange(field.id, event.target.value)} />
+      disabled={field.disabled} onPointerDown={startTouch} onPointerMove={moveTouch} onPointerUp={endTouch} onPointerCancel={endTouch} onLostPointerCapture={endTouch}
+      onKeyDown={() => { ignoreNativeTouch.current = false; }} onChange={(event) => { if (!ignoreNativeTouch.current) onChange(field.id, event.target.value); }} />
   </div>;
 }
 
@@ -141,13 +175,14 @@ export function BottomNav({ active, onSelect }: { active: string;
 }
 
 /** 使用原生模态对话框提供焦点约束和关闭后的焦点恢复，喵~ */
-export function BottomSheet({ open, title, children, footer, summary, onClose, onBack }: { open: boolean; title: string; children: ReactNode; footer?: ReactNode; summary?: ReactNode;
+export function BottomSheet({ open, title, children, footer, summary, onClose, onBack, closeLabel = '取消', closeOnBackdrop = false, className = '' }: { open: boolean; title: string; children: ReactNode; footer?: ReactNode; summary?: ReactNode; closeLabel?: string; closeOnBackdrop?: boolean; className?: string;
   /** 请求取消当前面板，组件不提交业务数据，喵~ */
-  onClose: Action;
+  onClose: (reason: 'button' | 'escape' | 'backdrop') => void;
   /** 请求返回上一级面板，喵~ */
   onBack?: Action;
 }) {
   const dialog = useRef<HTMLDialogElement>(null);
+  const backdropPressed = useRef(false);
   const label = useId();
   /** 同步模态显示并恢复触发元素的焦点，喵~ */
   useEffect(() => {
@@ -157,7 +192,14 @@ export function BottomSheet({ open, title, children, footer, summary, onClose, o
     element.showModal();
     return () => { element.close(); previous?.focus(); };
   }, [open]);
-  return <dialog ref={dialog} className={s.dialog} aria-labelledby={label} onCancel={(event) => { event.preventDefault(); onClose(); }} onKeyDown={(event) => {
+  /** 仅对确实落在原生遮罩上的操作响应，避免内容区域拖动误关闭，喵~ */
+  function isBackdrop(event: React.MouseEvent<HTMLDialogElement> | React.PointerEvent<HTMLDialogElement>) {
+    const rect = event.currentTarget.getBoundingClientRect();
+    return event.target === event.currentTarget && (event.clientX < rect.left || event.clientX > rect.right || event.clientY < rect.top || event.clientY > rect.bottom);
+  }
+  return <dialog ref={dialog} className={`${s.dialog} ${className}`} aria-labelledby={label} onCancel={(event) => { event.preventDefault(); onClose('escape'); }}
+    onPointerDown={(event) => { backdropPressed.current = isBackdrop(event); }}
+    onClick={(event) => { if (closeOnBackdrop && backdropPressed.current && isBackdrop(event)) onClose('backdrop'); backdropPressed.current = false; }} onKeyDown={(event) => {
     if (event.key !== 'Tab') return;
     const controls = [...event.currentTarget.querySelectorAll<HTMLElement>('button:not(:disabled), input:not(:disabled), select:not(:disabled), a[href], summary, [tabindex="0"]')]
       .filter((element) => element.tabIndex >= 0 && element.getClientRects().length > 0);
@@ -165,7 +207,7 @@ export function BottomSheet({ open, title, children, footer, summary, onClose, o
     if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus(); }
     else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); }
   }}>
-    <header className={s.dialogHeader}>{onBack && <HelpLink onClick={onBack}>‹ 返回</HelpLink>}<h2 id={label}>{title}</h2><HelpLink onClick={onClose}>取消</HelpLink></header>
+    <header className={s.dialogHeader}>{onBack && <HelpLink onClick={onBack}>‹ 返回</HelpLink>}<h2 id={label}>{title}</h2><HelpLink onClick={() => onClose('button')}>{closeLabel}</HelpLink></header>
     {summary && <div className={s.dialogSummary}>{summary}</div>}
     <div className={s.dialogContent}>{children}</div>{footer && <footer className={s.dialogFooter}>{footer}</footer>}
   </dialog>;

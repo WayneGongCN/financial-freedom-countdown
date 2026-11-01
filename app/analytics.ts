@@ -1,7 +1,8 @@
 import { SITE_HOSTNAME, seoPages } from './seo';
 /** GA 只接收使用行为，调用方不得传入财务数值、名称、备注或文档标识。 */
-type EventParams = { field_name?: string; entry_point?: string; flow_type?: string; flow_count?: number; changed_fields?: number; result_status?: 'available' | 'unavailable' | 'invalid'; display_basis?: 'real' | 'nominal' };
-type EventName = 'plan_open' | 'plan_field_edit' | 'plan_field_save' | 'plan_save' | 'goal_save' | 'evaluation_open' | 'evaluation_field_edit' | 'evaluation_run' | 'evaluation_add_flow' | 'evaluation_remove_flow' | 'evaluation_clear' | 'evaluation_basis_change';
+type RewardMethod = 'wechat' | 'alipay' | 'buy_me_a_coffee';
+type EventParams = { field_name?: string; entry_point?: string; flow_type?: string; flow_count?: number; changed_fields?: number; result_status?: 'available' | 'unavailable' | 'invalid'; display_basis?: 'real' | 'nominal'; payment_method?: RewardMethod; previous_method?: RewardMethod; close_method?: 'button' | 'escape' | 'backdrop' };
+type EventName = 'plan_open' | 'plan_field_edit' | 'plan_field_save' | 'plan_save' | 'goal_save' | 'evaluation_open' | 'evaluation_field_edit' | 'evaluation_run' | 'evaluation_add_flow' | 'evaluation_remove_flow' | 'evaluation_clear' | 'evaluation_basis_change' | 'reward_dialog_open' | 'reward_method_change' | 'reward_image_save' | 'reward_dialog_close';
 type Gtag = (...args: unknown[]) => void;
 declare global { interface Window { dataLayer?: unknown[]; gtag?: Gtag } }
 

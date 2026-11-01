@@ -46,6 +46,7 @@ test('首次填写计划，预测期限固定且保存恢复', async ({ page }) 
 });
 
 test('新方案默认 2% 通胀和 5% 收益，填写资产与收支即可预测', async ({ page }) => {
+  await page.clock.setFixedTime(new Date('2026-10-15T12:00:00+08:00'));
   await page.goto('/');
   await page.getByLabel('当前年支出', { exact: true }).fill('120000');
   await page.getByRole('button', { name: '填写我的计划' }).click();
