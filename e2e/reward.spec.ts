@@ -61,7 +61,9 @@ test('赞赏选择、原图下载、遮罩与键盘关闭，保持原页面状�
     const downloadPromise = page.waitForEvent('download');
     await dialog.getByRole('link', { name: '保存图片' }).click();
     const download = await downloadPromise;
-    expect(download.suggestedFilename()).toBe(file);
+    // CDN 的 Content-Disposition 可能优先于 download 名称，仍须校验当前图片与原始字节，喵~
+    const assetFilename = new URL((await dialog.getByRole('img').getAttribute('src'))!, page.url()).pathname.split('/').at(-1);
+    expect([file, assetFilename]).toContain(download.suggestedFilename());
     expect(await download.failure()).toBeNull();
     expect(await readFile((await download.path())!)).toEqual(await readFile(new URL(`../app/assets/${file}`, import.meta.url)));
   }
