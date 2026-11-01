@@ -87,7 +87,7 @@
 .sliderField .inputLine { width: 56%; gap: 4px; }
 .sliderField .inputLine input { text-align: right; }
 .sliderField .unit { flex-shrink: 0; }
-.slider { display: block; width: 100%; height: 28px; margin: 0; accent-color: var(--color-text); cursor: pointer; }
+.slider { display: block; width: 100%; height: 28px; margin: 0; accent-color: var(--color-text); cursor: pointer; touch-action: pan-y pinch-zoom; }
 .equation { padding: 12px; border-radius: var(--radius); background: var(--color-canvas); font-size: 14px; line-height: 24px; overflow-wrap: anywhere; }
 .metric { display: flex; flex-direction: column; gap: 4px; }
 .metricValue { font-size: 36px; font-weight: 700; line-height: 48px; overflow-wrap: anywhere; }
@@ -121,5 +121,17 @@
 .editorPreview .row > :last-child { font-size: 14px; line-height: 20px; }
 .dialogFooter { padding: 12px 24px max(16px, env(safe-area-inset-bottom)); border-top: 1px solid var(--color-line); display: flex; gap: 12px; flex-shrink: 0; }
 .file { font-size: 12px; width: 100%; }
+.rewardTrigger { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 44px; padding: 8px 0; flex-shrink: 0; background: transparent; color: #fd4cc0; font-size: 14px; line-height: 22px; }
+.rewardTrigger:hover { text-decoration: underline; text-underline-offset: 4px; }
+.rewardDialog { height: auto; }
+.rewardContent { display: flex; flex-direction: column; gap: 16px; }
+.rewardContent > .body { color: var(--color-secondary); }
+.rewardContent .choices { gap: 6px; padding: 4px; border-radius: var(--radius); background: var(--color-soft); }
+.rewardContent .choice { padding: 8px 4px; font-size: 12px; font-weight: 400; }
+.rewardContent .choice[aria-checked='true'] { background: var(--color-surface); color: var(--color-text); box-shadow: 0 1px 3px rgb(0 0 0 / 8%); }
+.rewardImage { display: block; width: 216px; height: 216px; max-width: 100%; object-fit: contain; align-self: center; background: #fff; border-radius: var(--radius); }
+.rewardHint, .rewardThanks { text-align: center; }
+.rewardThanks { color: var(--color-secondary); font-size: 12px; line-height: 20px; }
+.rewardSave { display: block; text-align: center; text-decoration: none; }
 @media (max-width: 350px) { .header, .content, .dialogHeader, .dialogContent, .dialogSummary, .dialogFooter { padding-left: 16px; padding-right: 16px; } .heroValue { font-size: 42px; } .balances { gap: 16px; } .coreMetric { padding: 10px; } .coreMetric strong { font-size: 20px; } .assetMetric strong, .gapMetric strong { font-size: 42px; } .forecastGrid { gap: 12px; } .forecastGrid .subvalue { font-size: 22px; } }
 @media (max-height: 560px) { .dialog { height: calc(100dvh - 16px); max-height: calc(100dvh - 16px); } .dialogHeader { padding-top: 4px; padding-bottom: 4px; } .dialogSummary { padding-bottom: 8px; } .editorPreview { padding: 8px 12px; gap: 2px; } .editorPreview .heroValue { font-size: 24px; line-height: 30px; } }

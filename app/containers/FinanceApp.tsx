@@ -5,12 +5,16 @@ import { EditorPreview, EvaluationView, GoalEditorView, GuideView, OverviewView,
 import s from '../ui/ui.module.css';
 import { PublicContent } from '../ui/SeoContent';
 import { seoPages, seoPath } from '../seo';
+import { Reward } from './Reward';
 
 /** 将页面、编辑业务 Hook 与纯展示组件连接起来，喵~ */
 export function FinanceApp() {
   const { api, nav, plan, goal, project, transfer, results, openPlan, openGoal, changeBasis, savePlan, saveGoal, closeEditor, importFile, enterGoalSide, removeGoal, makePrimary, reset } = useFinanceWorkspace();
+  // 仅检查已提交计划的五项核心配置；零值有效，未保存草稿及预测是否达标不影响判断，喵~
+  const savedPlan = api.document.plan;
+  const hasCompletePlan = [savedPlan.initialAssets, savedPlan.activeIncome, savedPlan.currentExpenses, savedPlan.investmentReturn, savedPlan.inflationRate].every(value => value !== null);
 
-  return <AppLayout scrollRef={nav.scrollRef} header={<><h1>{seoPages[seoPath(nav.location.pathname) ?? '/'].heading}</h1><HelpLink href={nav.guide ? undefined : '/guide'} onClick={nav.guide ? nav.returnFromGuide : () => nav.help()}>{nav.guide ? '‹ 返回' : '口径说明 ↗'}</HelpLink></>}
+  return <AppLayout scrollRef={nav.scrollRef} header={<>{nav.guide && <HelpLink onClick={nav.returnFromGuide}>‹ 返回</HelpLink>}<h1>{seoPages[seoPath(nav.location.pathname) ?? '/'].heading}</h1>{hasCompletePlan && <Reward />}</>}
     navigation={nav.guide ? null : <BottomNav active={nav.location.pathname} onSelect={nav.go} />}>
     {api.error && <div style={{ padding: '12px 24px' }}><StorageNotice message={api.error} blocked={api.blocked} onRetry={api.retrySave} onReset={reset} /></div>}
     {nav.guide ? <GuideView topics={guideTopics} active={nav.anchor} onHelp={nav.help} /> : nav.location.pathname === '/evaluate'

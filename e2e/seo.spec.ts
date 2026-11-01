@@ -34,7 +34,7 @@ test('客户端路由更新元信息且编辑参数不进入规范地址', async
   await expect(page).toHaveURL(/panel=plan/);
   await expect(page.locator('link[rel="canonical"]')).toHaveAttribute('href', `${origin}/evaluate`);
   await page.getByRole('button', { name: '取消', exact: true }).click();
-  await page.getByRole('link', { name: '口径说明 ↗', exact: true }).click();
+  await page.getByRole('link', { name: '4% 法则与计算口径', exact: false }).click();
   await expect(page).toHaveTitle(routes[2]!.title);
   await expect(page.locator('h1')).toHaveCount(1);
   await expect(page.locator('meta[name="description"]')).toHaveCount(1);
