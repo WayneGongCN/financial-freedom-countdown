@@ -119,7 +119,7 @@ Google Search Console 使用正式域名的 URL 前缀资源；Bing 使用同一
 
 ## 部署到 Vercel
 
-`vercel.json` 指定 Vite、Web 类型检查和构建命令，产物目录为 `web-dist/`。安装命令固定使用 `pnpm@11.10.0` 并校验锁文件，避免平台默认包管理器版本改变依赖。只发布静态前端，无服务端环境变量；`.vercel/` 关联信息、构建产物及财务备份不应提交。路由回退遵循 [Vercel Vite 文档](https://vercel.com/docs/frameworks/frontend/vite)。
+`vercel.json` 指定 Vite、Web 类型检查和构建命令，产物目录为 `web-dist/`。安装命令固定使用 `pnpm@11.10.0` 并校验锁文件，避免平台默认包管理器版本改变依赖。只发布静态前端；`.vercel/` 关联信息、构建产物及财务备份不应提交。路由回退遵循 [Vercel Vite 文档](https://vercel.com/docs/frameworks/frontend/vite)。
 
 ```sh
 pnpm dlx vercel@65.1.0 login
@@ -127,6 +127,8 @@ pnpm dlx vercel@65.1.0 --prod
 ```
 
 部署后检查首页、直接访问 `/evaluate`、`/guide` 与刷新恢复。每个域名有独立的浏览器存储，本地预览数据不会自动传到线上；需要时使用应用内 JSON 导入导出。
+
+如需启用 Sentry，在 Vercel 的 Production 环境配置 `VITE_SENTRY_DSN`。同时配置 `SENTRY_ORG`、`SENTRY_PROJECT` 和构建密钥 `SENTRY_AUTH_TOKEN` 后，构建会上传 Source Map 并从发布产物移除它。Auth Token 不可使用 `VITE_` 前缀。异常仅保留固定操作名和代码位置，财务输入和存档内容不会作为错误上下文发送。
 
 设置 `PLAYWRIGHT_BASE_URL` 后，`pnpm test:e2e` 会直接验证指定部署，不启动本地开发服务器。测试使用隔离浏览器上下文和合成数据，不读取或修改用户浏览器里的计划。
 

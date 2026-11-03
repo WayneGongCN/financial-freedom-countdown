@@ -6,7 +6,9 @@ import { FinanceApp } from './containers/FinanceApp';
 import './styles.css';
 import './seo.css';
 import { initAnalytics } from './analytics';
+import { initializeErrorMonitoring } from './error-monitoring';
 
+initializeErrorMonitoring();
 initAnalytics('G-5ZPDR2VWBB', import.meta.env.PROD);
 
 const storage = {
