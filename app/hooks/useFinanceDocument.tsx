@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useReducer, type ReactNode } from 'react';
 import { createDocument, DEFAULT_STORAGE_KEY, MAX_MONTHS, documentSchema, exportDocument, importDocument, saveDocument, type FinanceDocument, type StorageAdapter } from '../../src/index';
+import { reportError } from '../error-monitoring';
 
 interface DocumentState { document: FinanceDocument; error: string | null; blocked: boolean; revision: number; savedRevision: number }
 type Event = { type: 'commit'; document: FinanceDocument; recover?: boolean } | { type: 'saved'; revision: number } | { type: 'failed'; error: string } | { type: 'retry' };
@@ -41,8 +42,11 @@ function initialize(storage: StorageAdapter): DocumentState {
     const document = json === null ? createDocument(currentMonth()) : importDocument(json);
     return { document: applicationDocument(document), error: null, blocked: false, revision: 0, savedRevision: 0 };
   }
-  catch { return { document: createDocument(currentMonth()),
-    error: '无法读取已保存的方案。原始数据已保留，可导入备份或选择重新开始。', blocked: true, revision: 0, savedRevision: 0 }; }
+  catch (error) {
+    reportError(error, 'finance_storage_read');
+    return { document: createDocument(currentMonth()),
+      error: '无法读取已保存的方案。原始数据已保留，可导入备份或选择重新开始。', blocked: true, revision: 0, savedRevision: 0 };
+  }
 }
 
 /** 集中管理文档提交和保存状态，喵~ */
@@ -66,7 +70,10 @@ export function FinanceDocumentProvider({ children, storage }: { children: React
   useEffect(() => {
     if (state.blocked || state.revision === state.savedRevision) return;
     try { saveDocument(storage, state.document); dispatch({ type: 'saved', revision: state.revision }); }
-    catch { dispatch({ type: 'failed', error: '保存失败，修改仍保留在本次会话中。请重试或导出备份。' }); }
+    catch (error) {
+      reportError(error, 'finance_storage_save');
+      dispatch({ type: 'failed', error: '保存失败，修改仍保留在本次会话中。请重试或导出备份。' });
+    }
   }, [storage, state.blocked, state.document, state.revision, state.savedRevision]);
   const commit = useCallback((document: FinanceDocument) => {
     const parsed = documentSchema.safeParse(document);
