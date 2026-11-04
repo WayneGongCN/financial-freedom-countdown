@@ -1,10 +1,11 @@
 import { test as base, type Page } from '@playwright/test';
 export { expect, type Page, type Locator } from '@playwright/test';
 
-/** 生产回归也拦截 GA，避免合成测试污染真实统计。 */
-export const test = base.extend<{ analyticsIsolation: void }>({
-  analyticsIsolation: [async ({ context }, use) => {
+/** 拦截生产回归的 GA 和 Sentry 请求，避免合成测试污染真实统计与告警，喵~ */
+export const test = base.extend<{ telemetryIsolation: void }>({
+  telemetryIsolation: [async ({ context }, use) => {
     await context.route(/https:\/\/(www\.googletagmanager\.com|[^/]*google-analytics\.com)\//, (route) => route.fulfill({ status: 200, contentType: 'application/javascript', body: '' }));
+    await context.route(/^https:\/\/[^/]+\.sentry\.io\/api\/\d+\/(?:envelope|store)\//, (route) => route.fulfill({ status: 200, contentType: 'application/json', body: '{}' }));
     await use();
   }, { auto: true }],
 });

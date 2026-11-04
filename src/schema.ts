@@ -24,7 +24,7 @@ export const flowScheduleSchema = z.array(flowStageSchema).min(1).superRefine((s
   });
 });
 export const expenseScheduleSchema = flowScheduleSchema.superRefine((stages, ctx) => {
-  if (stages.length > 0 && stages.at(-1)!.durationMonths !== null) {
+  if (stages.length > 0 && stages[stages.length - 1]!.durationMonths !== null) {
     ctx.addIssue({ code: 'custom', path: [stages.length - 1, 'durationMonths'], message: '最后一个支出阶段必须不限期' });
   }
 });

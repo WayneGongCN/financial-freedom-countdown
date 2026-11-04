@@ -58,7 +58,7 @@ export function usePlanEditor() {
   }
   /** 修改输入时保留字符串中间态，切换年月单位保持有效期限，喵~ */
   function change(id: string, value: string) {
-    if (!draft || !Object.hasOwn(draft, id) || draft[id] === value) return;
+    if (!draft || !Object.prototype.hasOwnProperty.call(draft, id) || draft[id] === value) return;
     trackEdit(id);
     setDraft((previous) => previous ? changeScheduleField(previous, id, value) : previous);
     setSubmitError(undefined);

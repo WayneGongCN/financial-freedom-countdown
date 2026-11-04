@@ -9,7 +9,7 @@ export type SeoPath = keyof typeof seoPages;
 
 /** 将已知路由映射到公开页面，未知路径不冒充首页，喵~ */
 export function seoPath(pathname: string): SeoPath | undefined {
-  return Object.hasOwn(seoPages, pathname) ? pathname as SeoPath : undefined;
+  return Object.prototype.hasOwnProperty.call(seoPages, pathname) ? pathname as SeoPath : undefined;
 }
 
 /** 生成只描述公开功能的结构化数据，永不读取个人方案，喵~ */
