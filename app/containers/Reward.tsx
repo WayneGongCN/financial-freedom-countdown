@@ -32,7 +32,7 @@ export function Reward() {
   }
   /** 仅在切换到不同支付方式时上报，重复点击当前选项不重复计数，喵~ */
   function select(value: string) {
-    if (!Object.hasOwn(methods, value) || value === method) return;
+    if (!Object.prototype.hasOwnProperty.call(methods, value) || value === method) return;
     const next = value as Method;
     setMethod(next);
     trackEvent('reward_method_change', { payment_method: next, previous_method: method });

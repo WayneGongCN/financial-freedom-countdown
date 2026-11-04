@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { COMPONENT_LABELS, METRIC_PRESET_NAMES, createDefaultGoals, describeMetric, goalSchema, metricSchema, metricPreset, type Goal, type MetricSpec, type MetricPresetId } from '../../src/index';
 import { basisOptions, field, inputText, readNumber, type Draft, type Errors } from '../model/forms';
+import { createId } from '../model/id';
 import type { EditorModel, FieldModel, SectionModel } from '../ui/types';
 import { useFinanceDocument } from './useFinanceDocument';
 import { previewGoal } from './useFinanceResults';
@@ -148,14 +149,14 @@ export function useGoalEditor() {
   /** 打开已有目标或创建一个独立的新目标草稿，喵~ */
   function begin(id?: string, initialSide = '') {
     const goal = api.document.goals.find((item) => item.id === id);
-    const initial = goal ?? { ...createDefaultGoals()[0]!, id: crypto.randomUUID() };
+    const initial = goal ?? { ...createDefaultGoals()[0]!, id: createId() };
     setDraft(goalDraft(initial)); setIsNew(!goal); setSide(initialSide); setParentDraft(initialSide ? goalDraft(initial) : null); setSubmitError(undefined);
   }
   /** 修改普通字段或以预设替换选中的一侧，喵~ */
   function change(id: string, value: string) {
     setDraft((previous) => {
       if (!previous) return previous;
-      if (id === 'leftPreset' || id === 'rightPreset') return Object.hasOwn(METRIC_PRESET_NAMES, value)
+      if (id === 'leftPreset' || id === 'rightPreset') return Object.prototype.hasOwnProperty.call(METRIC_PRESET_NAMES, value)
         ? { ...previous, ...metricDraft(metricPreset(value as MetricPresetId), id === 'leftPreset' ? 'left' : 'right') } : previous;
       if (id === 'template') {
         if (value === 'amount') return { ...goalDraft({ id: previous.id!, name: '我的金额目标', left: metricPreset('assets'), right: { kind: 'amount', amount: 0, unit: 'capital', basis: 'nominal' }, ratio: 1, comparison: 'scenario' }), amount: '' };
@@ -179,7 +180,7 @@ export function useGoalEditor() {
     setSubmitError(error ?? undefined); if (error) return false; setDraft(null); return true;
   }
   /** 复制当前草稿为待保存目标，不提前写入正式文档，喵~ */
-  function duplicate() { if (draft) { setDraft({ ...draft, id: crypto.randomUUID(), name: `${draft.name}（副本）` }); setIsNew(true); } }
+  function duplicate() { if (draft) { setDraft({ ...draft, id: createId(), name: `${draft.name}（副本）` }); setIsNew(true); } }
   /** 删除目标并原子修复主目标引用，喵~ */
   function remove() {
     if (!draft || isNew) return;

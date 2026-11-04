@@ -17,7 +17,7 @@ export function initAnalytics(measurementId: string | undefined, production: boo
     window.dataLayer = window.dataLayer ?? [];
     window.gtag = window.gtag ?? function () { window.dataLayer!.push(arguments); };
     window.gtag('js', new Date());
-    const path = Object.hasOwn(titles, window.location.pathname) ? window.location.pathname : '/';
+    const path = Object.prototype.hasOwnProperty.call(titles, window.location.pathname) ? window.location.pathname : '/';
     window.gtag('set', { page_location: `${window.location.origin}${path}`, page_title: titles[path], page_referrer: document.referrer ? new URL(document.referrer).origin : '' });
     window.gtag('config', measurementId, { send_page_view: false, allow_google_signals: false, allow_ad_personalization_signals: false });
     const script = document.createElement('script');
@@ -31,7 +31,7 @@ export function initAnalytics(measurementId: string | undefined, production: boo
 /** 统计真实页面切换，面板参数和说明锚点不新增 PV；StrictMode 不重复上报。 */
 export function trackPage(pathname: string) {
   if (!enabled) return;
-  const path = Object.hasOwn(titles, pathname) ? pathname : '/';
+  const path = Object.prototype.hasOwnProperty.call(titles, pathname) ? pathname : '/';
   if (path === currentPath) return;
   const pageLocation = `${window.location.origin}${path}`;
   let referrer = '';

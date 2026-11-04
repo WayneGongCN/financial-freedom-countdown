@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { cashAmount, projectSchema, reserveSchedule, type CashFlow, type Plan, type Project } from '../../src/index';
 import { field, growthDraft, growthFields, inputText, parseGrowth, readNumber, type Draft, type Errors } from '../model/forms';
 import { monthAt, monthLabel, monthOffset, numberText } from '../model/format';
+import { createId } from '../model/id';
 import type { SectionModel } from '../ui/types';
 import { useFinanceDocument } from './useFinanceDocument';
 import { trackEvent } from '../analytics';
@@ -10,7 +11,7 @@ export interface ProjectDraft { id: string; name: string; notes: string; flows: 
 
 /** 创建一笔明确收付方向的待填写现金流，喵~ */
 function emptyFlow(plan: Plan, kind: CashFlow['kind'] = 'expense'): Draft {
-  return { id: crypto.randomUUID(), kind, amount: '', frequency: kind === 'expense' ? 'once' : 'monthly', start: monthAt(plan.baseMonth, kind === 'expense' ? 0 : 1), end: '', anchor: 'base', continues: 'true', ...growthDraft('amount', { kind: 'fixed' }) };
+  return { id: createId(), kind, amount: '', frequency: kind === 'expense' ? 'once' : 'monthly', start: monthAt(plan.baseMonth, kind === 'expense' ? 0 : 1), end: '', anchor: 'base', continues: 'true', ...growthDraft('amount', { kind: 'fixed' }) };
 }
 
 /** 从持久化项目恢复可编辑文本，喵~ */
@@ -18,7 +19,7 @@ export function projectDraft(project: Project | null, plan: Plan): ProjectDraft 
   return project ? { id: project.id, name: project.name, notes: project.notes,
     flows: project.cashFlows.map((flow) => ({ id: flow.id, kind: flow.kind, amount: inputText(flow.amount), frequency: flow.frequency,
       start: monthAt(plan.baseMonth, flow.startMonth), end: flow.endMonth === null ? '' : monthAt(plan.baseMonth, flow.endMonth), anchor: flow.priceAnchorMonth === 0 ? 'base' : 'start', continues: String(flow.continuesAfterFreedom), ...growthDraft('amount', flow.growth) })) }
-    : { id: crypto.randomUUID(), name: '我的消费评估', notes: '', flows: [emptyFlow(plan)] };
+    : { id: createId(), name: '我的消费评估', notes: '', flows: [emptyFlow(plan)] };
 }
 
 /** 校验多笔现金流草稿，所有月份均以保存的方案基准计算，喵~ */
@@ -78,7 +79,7 @@ export function useProjectEditor(active = true) {
     const flowId = id.slice(0, separator);
     const key = id.slice(separator + 1);
     const flow = draft.flows.find((item) => item.id === flowId);
-    if (!flow || !Object.hasOwn(flow, key) || key === 'id' || flow[key] === value) return;
+    if (!flow || !Object.prototype.hasOwnProperty.call(flow, key) || key === 'id' || flow[key] === value) return;
     if (!editedFields.current.has(key)) { editedFields.current.add(key); trackEvent('evaluation_field_edit', { field_name: key }); }
     update({ ...draft, flows: draft.flows.map((flow) => {
       if (flow.id !== flowId) return flow;
