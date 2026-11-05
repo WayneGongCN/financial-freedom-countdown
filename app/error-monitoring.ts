@@ -1,10 +1,38 @@
 import * as Sentry from '@sentry/browser';
+import { ZodError } from 'zod';
 
 const dsn = import.meta.env.PROD ? import.meta.env.VITE_SENTRY_DSN : undefined;
 type Operation = 'finance_storage_read' | 'finance_storage_save';
 const errorTypes = ['Error', 'TypeError', 'ReferenceError', 'SyntaxError', 'RangeError', 'URIError', 'EvalError', 'ZodError', 'SecurityError', 'QuotaExceededError', 'NS_ERROR_DOM_QUOTA_REACHED'];
 const mechanisms = ['generic', 'auto.browser.global_handlers.onerror', 'auto.browser.global_handlers.onunhandledrejection'];
 const debugIdPattern = /^[\da-f]{8}-[\da-f]{4}-[\da-f]{4}-[\da-f]{4}-[\da-f]{12}$/i;
+const validationFields = new Set([
+  'schemaVersion', 'modelVersion', 'plan', 'goals', 'project', 'preferences',
+  'baseMonth', 'currency', 'initialAssets', 'inflationRate', 'investmentReturn',
+  'activeIncome', 'currentExpenses', 'externalIncome', 'retirementBudget', 'horizonMonths',
+  'amount', 'growth', 'kind', 'annualRate', 'durationMonths', 'flow', 'id', 'name', 'notes',
+  'cashFlows', 'priceAnchorMonth', 'startMonth', 'endMonth', 'frequency', 'continuesAfterFreedom',
+  'left', 'right', 'basis', 'aggregation', 'components', 'withdrawalRate', 'deductExternalIncome',
+  'includeReserve', 'metric', 'unit', 'ratio', 'comparison', 'displayBasis', 'primaryGoalId',
+]);
+const validationCodes = new Set([
+  'invalid_type', 'too_big', 'too_small', 'invalid_format', 'not_multiple_of',
+  'unrecognized_keys', 'invalid_union', 'invalid_key', 'invalid_element', 'invalid_value', 'custom',
+]);
+
+/** 仅提取固定字段路径和校验代码，不保留输入值、消息、未知键或版本值，喵~ */
+function storageValidation(error: unknown) {
+  if (!(error instanceof ZodError)) return undefined;
+  const issues = error.issues.slice(0, 10).map(issue => ({
+    path: issue.path.slice(0, 8).map(part => typeof part === 'number' ? '*'
+      : typeof part === 'string' && validationFields.has(part) ? part : 'unknown').join('.') || 'document',
+    code: validationCodes.has(issue.code) ? issue.code : 'unknown',
+  }));
+  const reason = error.issues.some(issue => issue.path.length === 1
+    && (issue.path[0] === 'schemaVersion' || issue.path[0] === 'modelVersion'))
+    ? 'version_mismatch' : 'invalid_document';
+  return { reason, issues, truncated: error.issues.length > 10 };
+}
 
 /** 只允许本站构建脚本地址，过滤动态地址、外站、查询参数和锚点，喵~ */
 function scriptUrl(path?: string): string | undefined {
@@ -72,6 +100,7 @@ export function initializeErrorMonitoring(): void {
       if (!exceptions?.length) return null;
       const operation = event.tags?.operation === 'finance_storage_read' || event.tags?.operation === 'finance_storage_save'
         ? event.tags.operation : 'browser_exception';
+      const validation = operation !== 'browser_exception' ? storageValidation(original) : undefined;
       const values = exceptions.map((exception, index) => {
         const name = index === exceptions.length - 1 && originalType ? originalType : exception.type;
         const type = errorTypes.includes(name ?? '') ? name! : 'Error';
@@ -103,8 +132,10 @@ export function initializeErrorMonitoring(): void {
         level: 'error',
         environment: 'production',
         release: /^[\da-f]{7,64}$/i.test(event.release ?? '') ? event.release : undefined,
-        tags: { operation, error_type: primary.type, error_category: errorCategory(primary.type, operation) },
-        contexts: { browser: browserContext() },
+        tags: { operation, error_type: primary.type, error_category: errorCategory(primary.type, operation),
+          ...(validation ? { storage_validation_reason: validation.reason } : {}) },
+        contexts: { browser: browserContext(),
+          ...(validation ? { storage_validation: { issues: validation.issues, truncated: validation.truncated } } : {}) },
         exception: { values },
         debug_meta: { images: event.debug_meta?.images?.flatMap(image => {
           const codeFile = 'code_file' in image ? scriptUrl(image.code_file) : undefined;
