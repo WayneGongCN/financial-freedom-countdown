@@ -130,6 +130,8 @@ pnpm dlx vercel@65.1.0 --prod
 
 如需启用 Sentry，在 Vercel 的 Production 环境配置 `VITE_SENTRY_DSN`。同时配置 `SENTRY_ORG`、`SENTRY_PROJECT` 和构建密钥 `SENTRY_AUTH_TOKEN` 后，构建会上传 Source Map 并从发布产物移除它。Auth Token 不可使用 `VITE_` 前缀。异常仅保留白名单异常类型、固定操作名、`error_category`、浏览器名称与数字版本以及本站构建脚本的代码位置。存档故障区分 JSON 解析失败、结构校验失败、访问被拒、配额不足和其他读写失败；未捕获异常区分类型、引用和语法错误。上报事件按白名单重建，不发送原始异常消息、完整 UA、请求、用户信息、面包屑、附件或任意附加上下文；财务输入、方案名称、备注和存档内容不会发送。
 
+存档结构校验失败时，额外通过 `storage_validation_reason` 区分版本字段不匹配与其他文档结构错误；`storage_validation` 上下文最多保留 10 项固定字段路径和 Zod 错误代码。数组下标统一替换为 `*`，未知字段名替换为 `unknown`，不发送实际版本值、校验消息、未知键或财务值。
+
 设置 `PLAYWRIGHT_BASE_URL` 后，`pnpm test:e2e` 会直接验证指定部署，不启动本地开发服务器。测试使用隔离浏览器上下文和合成数据，不读取或修改用户浏览器里的计划，并拦截 GA 和 Sentry 请求，避免污染真实统计与告警。
 
 ## 设计与验收范围

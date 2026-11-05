@@ -1,4 +1,6 @@
 import * as Sentry from '@sentry/browser';
+import { ZodError } from 'zod';
+import { createDocument, documentSchema } from '../src/index';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('@sentry/browser', async importOriginal => ({
@@ -58,6 +60,39 @@ describe('Sentry 技术分类与数据最小化', () => {
     expect(clean?.tags).toMatchObject({ error_type: 'SecurityError', error_category: 'storage_access_denied' });
     expect(clean?.exception?.values?.[0]?.mechanism?.handled).toBe(true);
     expect(JSON.stringify(clean)).not.toContain('private-finance');
+  });
+
+  it.each([false, true])('区分存档版本不兼容与结构错误，版本错误=%s', async versionMismatch => {
+    const options = await monitoringOptions();
+    const secret = 'private-finance-7654321';
+    const document = createDocument('2026-11');
+    const parsed = documentSchema.safeParse(versionMismatch
+      ? { ...document, schemaVersion: 3, modelVersion: secret }
+      : { ...document, plan: { ...document.plan, initialAssets: secret }, [secret]: secret });
+    if (parsed.success) throw new Error('测试数据应校验失败');
+    const clean = await options.beforeSend!({ type: undefined, tags: { operation: 'finance_storage_read' },
+      exception: { values: [{ type: 'ZodError', value: parsed.error.message }] } }, { originalException: parsed.error });
+    expect(clean?.tags?.storage_validation_reason).toBe(versionMismatch ? 'version_mismatch' : 'invalid_document');
+    expect(clean?.contexts?.storage_validation).toEqual({ truncated: false, issues: versionMismatch
+      ? [{ path: 'schemaVersion', code: 'invalid_value' }, { path: 'modelVersion', code: 'invalid_value' }]
+      : [{ path: 'plan.initialAssets', code: 'invalid_type' }, { path: 'document', code: 'unrecognized_keys' }] });
+    expect(JSON.stringify(clean)).not.toContain(secret);
+  });
+
+  it('校验诊断隐藏未知路径和数组下标，并限制诊断长度', async () => {
+    const options = await monitoringOptions();
+    const secret = 'private-finance-7654321';
+    const error = new ZodError(Array.from({ length: 12 }, () => ({
+      code: 'custom', path: ['goals', 7654321, secret, 'name'], message: secret, params: { input: secret },
+    })));
+    const event = { type: undefined, tags: { operation: 'finance_storage_read' }, exception: { values: [{ type: 'ZodError' }] } } as const;
+    const clean = await options.beforeSend!({ ...event, exception: { values: [...event.exception.values] } }, { originalException: error });
+    expect(clean?.contexts?.storage_validation).toEqual({ truncated: true,
+      issues: Array.from({ length: 10 }, () => ({ path: 'goals.*.unknown.name', code: 'custom' })) });
+    expect(JSON.stringify(clean)).not.toContain(secret);
+    expect(JSON.stringify(clean)).not.toContain('7654321');
+    const browserError = await options.beforeSend!({ type: undefined, exception: { values: [{ type: 'ZodError' }] } }, { originalException: error });
+    expect(browserError?.contexts?.storage_validation).toBeUndefined();
   });
 
   it.each([
