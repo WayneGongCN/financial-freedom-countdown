@@ -65,7 +65,7 @@ export function useFinanceNavigation() {
   useLayoutEffect(() => {
     const element = scrollRef.current;
     if (!element) return;
-    if (guide && anchor) {
+    if (anchor) {
       const topic = document.getElementById(anchor);
       topic?.scrollIntoView({ block: 'start' }); topic?.focus({ preventScroll: true });
     } else element.scrollTop = (location.state as { restoreScroll?: number } | null)?.restoreScroll ?? positions.current[location.pathname] ?? 0;

@@ -8,7 +8,7 @@ import { SITE_ORIGIN, seoMeta, seoPages, seoPath, structuredData, type SeoPath }
 /** 渲染公开页面外壳，个人计划仍由客户端挂载，喵~ */
 function StaticPage({ path }: { path: SeoPath }) {
   return <React.Fragment><div className="static-page"><header><h1>{seoPages[path].heading}</h1></header><main>
-    {path === '/guide' ? <div className="seo-content"><p>了解每个数字的含义，再选择适合你的口径。</p><GuideContent topics={guideTopics} /><a href="/">返回财务自由计算器 ↗</a></div> : <PublicContent evaluation={path === '/evaluate'} />}
+    {path === '/guide' ? <div className="seo-content"><GuideContent topics={guideTopics} /></div> : <PublicContent evaluation={path === '/evaluate'} />}
     <noscript><p className="seo-content">计算器需要启用 JavaScript；你仍可阅读功能与计算口径说明。</p></noscript>
   </main></div></React.Fragment>;
 }
