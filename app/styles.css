@@ -1,9 +1,5 @@
-@import '@fontsource/noto-sans-sc/400.css';
-@import '@fontsource/noto-sans-sc/500.css';
-@import '@fontsource/noto-sans-sc/700.css';
-
 :root {
-  font-family: 'Noto Sans SC', sans-serif;
+  font-family: system-ui, -apple-system, "PingFang SC", "Microsoft YaHei", "Noto Sans CJK SC", sans-serif;
   font-synthesis: none;
   color: #202020;
   background: #f7f7f7;

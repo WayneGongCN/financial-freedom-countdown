@@ -35,7 +35,6 @@
     "test:seo": "node scripts/check-seo.mjs"
   },
   "dependencies": {
-    "@fontsource/noto-sans-sc": "^5.3.1",
     "@sentry/browser": "^11.10.0",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
