@@ -21,7 +21,7 @@ export function FinanceApp() {
       ? <EvaluationView model={results.evaluation} sections={project.sections} timingRows={project.timingRows} canAdd={project.canAdd} onChange={project.change} onHelp={nav.help} onBasisChange={changeBasis}
         onAddExpense={() => project.add('expense')} onAddIncome={() => project.add('active-income')} onRemove={project.remove} onClear={project.clear} onEditPlan={openPlan} />
       : <OverviewView model={results.overview} initialField={plan.initialField} initialTarget={plan.initialTarget} onInitialExpense={plan.changeInitialExpense} onHelp={nav.help} onEditPlan={openPlan} onEditGoal={(id) => openGoal(id ?? api.document.preferences.primaryGoalId ?? undefined)} onAddGoal={() => openGoal()} onEvaluate={() => nav.go('/evaluate')} />}
-    {!nav.guide && <PublicContent evaluation={nav.location.pathname === '/evaluate'} onNavigate={path => path === '/guide' ? nav.help() : nav.go(path)} />}
+    {!nav.guide && <PublicContent evaluation={nav.location.pathname === '/evaluate'} onNavigate={path => path.startsWith('/guide') ? nav.help(path.split('#')[1]) : nav.go(path)} />}
     <BottomSheet open={!nav.guide && nav.panel === 'plan' && !!plan.model} title={plan.model?.title ?? '我的计划'} onClose={closeEditor}
       summary={plan.model && <EditorPreview model={plan.model} />}
       footer={<Button onClick={savePlan} disabled={!plan.model?.canSave}>{plan.model?.saveLabel ?? '完成并保存'}</Button>}>

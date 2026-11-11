@@ -4,9 +4,9 @@ import { JSDOM } from 'jsdom';
 
 const origin = 'https://freedom-countdown.waynegong.com';
 const expected = [
-  ['/', 'index.html', '财富自由倒计时｜财务自由计算器', '估算财富自由'],
+  ['/', 'index.html', '财富自由倒计时｜财务自由计算器', '财务自由计算器能算出什么'],
   ['/evaluate', 'evaluate.html', '消费与增收影响评估｜财富自由倒计时', '评估一笔消费或增收'],
-  ['/guide', 'guide.html', '4% 法则与计算口径说明｜财富自由倒计时', '有限期支出的剩余准备金'],
+  ['/guide', 'guide.html', '财富自由需要多少钱？4% 法则与计算口径｜财富自由倒计时', '有限期支出的剩余准备金'],
 ];
 const descriptions = new Set();
 for (const [path, file, title, text] of expected) {

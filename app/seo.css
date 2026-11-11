@@ -9,7 +9,12 @@
 .static-page h1 { font-size: 20px; font-weight: 500; }
 .guide-index { display: flex; flex-direction: column; gap: 4px; }
 .guide-index a { font-size: 14px; line-height: 24px; padding: 10px 0; text-decoration: none; border-bottom: 1px solid var(--color-line); }
-.guide-section { scroll-margin-top: 16px; }
-.guide-section h2 { font-size: 18px; font-weight: 500; line-height: 28px; margin-bottom: 12px; }
+.guide-section { scroll-margin-top: 16px; display: flex; flex-direction: column; gap: 16px; }
+.guide-section h2 { font-size: 18px; font-weight: 500; line-height: 28px; scroll-margin-top: 16px; }
 .guide-section p { font-size: 14px; line-height: 26px; white-space: pre-line; }
+.seo-table { width: 100%; border-collapse: collapse; font-size: 13px; line-height: 22px; }
+.seo-table caption { text-align: left; margin-bottom: 8px; }
+.seo-table th, .seo-table td { padding: 8px 4px; border-bottom: 1px solid var(--color-line, #e4e4e4); text-align: left; overflow-wrap: anywhere; }
+.seo-table th { font-weight: 500; }
+.content-byline { color: var(--color-secondary, #666); }
 @media (max-width: 350px) { .seo-content { padding-left: 16px; padding-right: 16px; } }

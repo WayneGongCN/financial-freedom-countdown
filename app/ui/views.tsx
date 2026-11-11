@@ -154,7 +154,7 @@ export function EvaluationView({ model, sections, timingRows, canAdd, onChange, 
 export type { GuideTopic } from './SeoContent';
 /** 渲染具有稳定锚点的口径说明正文，喵~ */
 export function GuideView({ topics, active, onHelp }: HelpProps & { topics: GuideTopic[]; active: string }) {
-  return <div className={s.content}><p className={s.caption}>{active ? '已定位到对应口径；返回后可继续原来的编辑。' : '了解每个数字的含义，再选择适合你的口径。'}</p>
+  return <div className={s.content}>{active && <p className={s.caption}>已定位到对应口径；返回后可继续原来的编辑。</p>}
     <GuideContent topics={topics} onHelp={onHelp} />
   </div>;
 }
