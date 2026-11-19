@@ -55,7 +55,7 @@ pnpm demo
 
 展示层不能导入财务核心、业务 Hook、路由或直接操作存储，ESLint 限制这些导入，并检查 Hook 使用规则。颜色、提前/延后、缺失状态、合法性和金额口径由 Hook 返回的 ViewModel 决定；UI 不自行推算。回调参数及提交语义记录在组件 props 接口中。
 
-- 路由为 `/`、`/evaluate`、`/guide#说明标识`；编辑面板使用 `panel`，目标编辑另外使用 `goal` 和高级指标的 `step` 查询参数，URL 不包含金额。旧计划子步骤链接会替换为同一个计划主面板链接。`vercel.json` 已为 `/evaluate` 和 `/guide` 配置各自的静态 HTML 入口，刷新子页面时仍可加载应用。
+- 路由为 `/`、`/evaluate`、`/guide#说明标识`；编辑面板使用 `panel`，目标编辑另外使用 `goal` 和高级指标的 `step` 查询参数，URL 不包含金额。旧计划子步骤链接会替换为同一个计划主面板链接。Cloudflare Workers 将 `/evaluate` 和 `/guide` 映射到各自的静态 HTML 入口，刷新子页面时仍可加载应用。
 - 初始计划以创建月份作为基准，默认年通胀率 2%、未扣通胀的年化总收益率 5%，两项均可修改或清空；总览按该基准月购买力展示。首页只输入年支出即可预览默认可编辑的 4% 目标，继续填写时带入草稿；资产、收入仍明确保留空值。已有存档和导入备份的通胀、收益假设保持原值。
 - 总览先展示预计达成月份的目标、预计还需时间和进度条，再并列展示同字号的当前可投资资产和当前缺口，超出目标时显示超出金额；下方两列展示年收入、年支出、年化总收益率和通胀率。五张可编辑参数卡右上角展示铅笔图标。点击资产、收入、支出、收益率或通胀卡片打开同一个计划编辑面板，内部表单滚动到对应字段并高亮 1.5 秒，不自动打开键盘；关闭后焦点返回触发卡片。达成月目标与预计还需时间并列，进度和当前目标位于预测区下方、资产卡片上方，资产类目标不再重复显示已积累金额。
 - 计划编辑按资产、收入、支出、收益率和通胀顺序提供精确输入与同步滑块。触屏轻触滑块不跳值，纵向滑动优先滚动表单，明确横向拖动后才按相对位移调整；鼠标和键盘仍使用原生操作。资产默认滑动范围为 0～1000 万元、步长 1 万元；收入、支出按当前年额调整，范围为 0～100 万元/年、步长 1,000 元；收益率为 −20%～30%、通胀为 −5%～10%，百分比步长均为 0.1 个百分点。手输支持小数与超范围数值，超出时扩展区间，拖动期间范围稳定。收益率统一填写未扣通胀的预期年化总收益率。通胀填 0% 表示不计，留空表示未设置；空白仍表示未知，拖动后才生成输入值。
@@ -75,7 +75,7 @@ pnpm demo
 
 ## GA4 使用分析
 
-生产媒体资源为「财富自由倒计时」（`560766131`），网站数据流 `16204229957`，衡量 ID `G-5ZPDR2VWBB`。公开衡量 ID 随 `app/main.tsx` 版本维护；只有生产构建且域名为 `freedom-countdown.waynegong.com` 时加载 GA，本地开发和 Vercel 预览不采集。
+生产媒体资源为「财富自由倒计时」（`560766131`），网站数据流 `16204229957`，衡量 ID `G-5ZPDR2VWBB`。公开衡量 ID 随 `app/main.tsx` 版本维护；只有生产构建且域名为 `freedom-countdown.waynegong.com` 时加载 GA，本地开发和本地预览不采集。
 
 `app/analytics.ts` 使用官方 gtag.js，异步加载并排队事件；脚本被拦截不会阻塞业务。按 [GA4 手动页面浏览文档](https://developers.google.com/analytics/devguides/collection/ga4/views) 设置 `send_page_view: false`，仅关闭初始化时的默认 PV；还须在 GA 的“数据流 → 增强型衡量 → 网页浏览量 → 高级设置”中关闭“根据浏览器历史记录事件判断的页面更改”，避免 History API 自动 PV 与手动 PV 叠加。其他增强型衡量事件可保留。手动记录初次访问和 React Router 页面切换；编辑面板、说明锚点和 StrictMode 重复执行不增加 PV。GA 自身负责基础会话、新用户与互动时长。
 
@@ -107,30 +107,32 @@ GA 已注册事件级自定义维度：编辑字段（`field_name`）、操作�
 
 ## 搜索引擎与分享
 
-正式域名为 `https://freedom-countdown.waynegong.com`。`app/seo.ts` 集中维护三个公开页面的标题、描述、canonical、OG/Twitter 和结构化数据；客户端导航复用同一配置。`seo-build.tsx` 在 Vite 构建时生成首页、`evaluate.html` 和 `guide.html`，Vercel 将无尾斜杠的 `/evaluate`、`/guide` 映射到对应产物。普通 HTTP 请求即可读取正文。
+正式域名为 `https://freedom-countdown.waynegong.com`。`app/seo.ts` 集中维护三个公开页面的标题、描述、canonical、OG/Twitter 和结构化数据；客户端导航复用同一配置。`seo-build.tsx` 在 Vite 构建时生成首页、`evaluate.html` 和 `guide.html`，Cloudflare Workers 将无尾斜杠的 `/evaluate`、`/guide` 映射到对应产物。普通 HTTP 请求即可读取正文。
 
 首页与评估页的说明复用 `PublicContent`，口径正文复用 `GuideContent` 与 `guideTopics`。客户端挂载时替换静态外壳，个人财务计算和 localStorage 初始化仍只在浏览器执行。新增或修改公开内容时应同步检查静态产物与交互页面；不将用户方案或财务数值写入 HTML、结构化数据或分享图。
 
 口径页开头解释年支出、提取率和目标资本，附研究来源与作者信息。评估页的 `#car-case` 展示公开买车算例；其中金额为合成假设，数字由模型回归测试复算，读者可在现有评估工具中输入相同条件。修改案例假设时同步更新结果表、资产路径表和回归验证。
 
-`robots.txt` 和 `sitemap.xml` 随构建生成，只列三个规范地址，编辑查询参数和说明锚点不单独收录。不虚构 `lastmod`。Vercel 预览构建使用 `noindex,follow`；生产未知路径由托管平台返回 404。`public/social-card.svg` 为分享图源文件，对应 PNG 为 1200 × 630，修改图源后需重新导出 PNG。
+`robots.txt` 和 `sitemap.xml` 随构建生成，只列三个规范地址，编辑查询参数和说明锚点不单独收录。不虚构 `lastmod`。生产未知路径返回 404。`public/social-card.svg` 为分享图源文件，对应 PNG 为 1200 × 630，修改图源后需重新导出 PNG。
 
 Google Search Console 使用正式域名的 URL 前缀资源；Bing 使用同一网址。两者的公开验证标签保存在 `index.html`，验证后仍须保留。发布后检查首页源代码中的标签，并分别在平台提交 `/sitemap.xml`；验证成功与实际编入索引是独立状态。
 
 `pnpm test:seo` 检查构建产物中的独立元信息、正文、链接、站点地图和分享资源；`pnpm test:e2e` 覆盖禁用 JavaScript 的公开内容及客户端路由切换。
 
-## 部署到 Vercel
+## 部署到 Cloudflare Workers
 
-`vercel.json` 指定 Vite、Web 类型检查和构建命令，产物目录为 `web-dist/`。安装命令固定使用 `pnpm@11.10.0` 并校验锁文件，避免平台默认包管理器版本改变依赖。只发布静态前端；`.vercel/` 关联信息、构建产物及财务备份不应提交。路由回退遵循 [Vercel Vite 文档](https://vercel.com/docs/frameworks/frontend/vite)。
+推送到 `main` 后，GitHub Actions 使用 Node.js 24 和 `package.json` 指定的 pnpm 版本，按锁文件安装依赖，运行 `pnpm check`，再将 `web-dist/` 发布到 Worker `financial-freedom-countdown`。也可以在 GitHub Actions 中从 `main` 手动运行发布工作流。
 
-```sh
-pnpm dlx vercel@65.1.0 login
-pnpm dlx vercel@65.1.0 --prod
+首次发布前，在 GitHub 仓库的 Actions Variables 中设置 `CLOUDFLARE_ACCOUNT_ID`，在 Actions Secrets 中设置 `CLOUDFLARE_API_TOKEN`。令牌须有部署 Worker 和绑定自定义域名的权限。`wrangler.jsonc` 声明了正式域名 `freedom-countdown.waynegong.com`。首次发布时，CI 中的 Wrangler 会绑定自定义域名，并替换该主机名冲突的 DNS 记录。确认 Worker 上线后，在旧托管项目中关闭 GitHub 自动部署。
+
+```bash
+pnpm build:web
+pnpm exec wrangler dev
 ```
 
-部署后检查首页、直接访问 `/evaluate`、`/guide` 与刷新恢复。每个域名有独立的浏览器存储，本地预览数据不会自动传到线上；需要时使用应用内 JSON 导入导出。
+运行 `pnpm exec wrangler deploy --dry-run` 可检查部署产物。上线后检查首页、直接访问 `/evaluate`、`/guide` 与刷新恢复。本地预览与正式站点各有独立的浏览器存储，需要迁移数据时使用应用内 JSON 导入导出。
 
-如需启用 Sentry，在 Vercel 的 Production 环境配置 `VITE_SENTRY_DSN`。同时配置 `SENTRY_ORG`、`SENTRY_PROJECT` 和构建密钥 `SENTRY_AUTH_TOKEN` 后，构建会上传 Source Map 并从发布产物移除它。Auth Token 不可使用 `VITE_` 前缀。异常仅保留白名单异常类型、固定操作名、`error_category`、浏览器名称与数字版本以及本站构建脚本的代码位置。存档故障区分 JSON 解析失败、结构校验失败、访问被拒、配额不足和其他读写失败；未捕获异常区分类型、引用和语法错误。上报事件按白名单重建，不发送原始异常消息、完整 UA、请求、用户信息、面包屑、附件或任意附加上下文；财务输入、方案名称、备注和存档内容不会发送。
+如需启用 Sentry，在 Actions Variables 中设置 `VITE_SENTRY_DSN`。同时设置 Variables `SENTRY_ORG`、`SENTRY_PROJECT` 和 Secret `SENTRY_AUTH_TOKEN` 后，构建会上传 Source Map 并从发布产物移除它。异常仅保留白名单异常类型、固定操作名、`error_category`、浏览器名称与数字版本以及本站构建脚本的代码位置。存档故障区分 JSON 解析失败、结构校验失败、访问被拒、配额不足和其他读写失败；未捕获异常区分类型、引用和语法错误。上报事件按白名单重建，不发送原始异常消息、完整 UA、请求、用户信息、面包屑、附件或任意附加上下文；财务输入、方案名称、备注和存档内容不会发送。
 
 存档结构校验失败时，额外通过 `storage_validation_reason` 区分版本字段不匹配与其他文档结构错误；`storage_validation` 上下文最多保留 10 项固定字段路径和 Zod 错误代码。数组下标统一替换为 `*`，未知字段名替换为 `unknown`，不发送实际版本值、校验消息、未知键或财务值。
 

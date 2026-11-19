@@ -10,7 +10,7 @@ describe('GA transport', () => {
   it('never loads GA on local, preview, development or unconfigured builds', async () => {
     const { initAnalytics, trackPage, trackEvent } = await import('../app/analytics');
     initAnalytics('G-TEST123', true, 'localhost');
-    initAnalytics('G-TEST123', true, 'preview.vercel.app');
+    initAnalytics('G-TEST123', true, 'preview.example.com');
     initAnalytics('G-TEST123', false, 'freedom-countdown.waynegong.com');
     initAnalytics(undefined, true, 'freedom-countdown.waynegong.com');
     trackPage('/'); trackEvent('plan_save');

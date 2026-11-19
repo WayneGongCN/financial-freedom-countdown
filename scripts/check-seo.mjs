@@ -20,7 +20,7 @@ for (const [path, file, title, text] of expected) {
   assert.equal(doc.querySelector('link[rel="canonical"]').href, origin + path);
   assert.equal(doc.querySelector('meta[property="og:url"]').content, origin + path);
   assert.equal(doc.querySelector('meta[property="og:image"]').content, `${origin}/social-card.png`);
-  assert.equal(doc.querySelector('meta[name="robots"]').content, process.env.VERCEL_ENV === 'preview' ? 'noindex,follow' : 'index,follow');
+  assert.equal(doc.querySelector('meta[name="robots"]').content, 'index,follow');
   assert.ok(doc.querySelector('meta[name="google-site-verification"]').content);
   assert.ok(doc.querySelector('meta[name="msvalidate.01"]').content);
   assert.ok(doc.querySelector('main').textContent.includes(text));
