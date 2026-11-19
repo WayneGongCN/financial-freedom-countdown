@@ -123,7 +123,7 @@ Google Search Console 使用正式域名的 URL 前缀资源；Bing 使用同一
 
 推送到 `main` 后，GitHub Actions 使用 Node.js 24 和 `package.json` 指定的 pnpm 版本，按锁文件安装依赖，运行 `pnpm check`，再将 `web-dist/` 发布到 Worker `financial-freedom-countdown`。也可以在 GitHub Actions 中从 `main` 手动运行发布工作流。
 
-首次发布前，在 GitHub 仓库的 Actions Variables 中设置 `CLOUDFLARE_ACCOUNT_ID`，在 Actions Secrets 中设置 `CLOUDFLARE_API_TOKEN`。令牌须有部署 Worker 和绑定自定义域名的权限。`wrangler.jsonc` 声明了正式域名 `freedom-countdown.waynegong.com`。首次发布时，CI 中的 Wrangler 会绑定自定义域名，并替换该主机名冲突的 DNS 记录。确认 Worker 上线后，在旧托管项目中关闭 GitHub 自动部署。
+首次发布前，在 GitHub 仓库的 Actions Variables 中设置 `CLOUDFLARE_ACCOUNT_ID`，在 Actions Secrets 中设置 `CLOUDFLARE_API_TOKEN`。令牌须有部署 Worker 和绑定自定义域名的权限。`wrangler.jsonc` 声明了正式域名 `freedom-countdown.waynegong.com`。首次绑定自定义域名时，先在 Cloudflare DNS 移除该主机名指向旧托管平台的 CNAME，再运行发布工作流。若工作流已经上传 Worker 但绑定失败，也可以在 Cloudflare 的 Worker 设置中直接绑定该域名，再重跑工作流。确认 Worker 上线后，在旧托管项目中关闭 GitHub 自动部署。
 
 ```bash
 pnpm build:web
