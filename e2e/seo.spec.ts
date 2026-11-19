@@ -3,8 +3,8 @@ import { createDocument, DEFAULT_STORAGE_KEY } from '../src/index';
 
 const origin = 'https://freedom-countdown.waynegong.com';
 const routes = [
-  { path: '/', title: '财富自由倒计时｜财务自由计算器', content: '财务自由计算器能算出什么？' },
-  { path: '/evaluate', title: '消费与增收影响评估｜财富自由倒计时', content: '评估一笔消费或增收，对自由时间的影响' },
+  { path: '/', title: '财务自由计算器｜测算财富自由所需资产和预计达成时间｜财富自由倒计时', content: '财务自由计算器能算出什么？' },
+  { path: '/evaluate', title: '消费与增收评估｜测算买车、加薪对财务自由时间的影响｜财富自由倒计时', content: '评估一笔消费或增收，对自由时间的影响' },
   { path: '/guide', title: '财富自由需要多少钱？4% 法则与计算口径｜财富自由倒计时', content: '有限期支出的剩余准备金' },
 ];
 
